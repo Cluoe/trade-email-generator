@@ -531,6 +531,11 @@ button:disabled {
   gap: 8px;
 }
 
+.prospect-actions {
+  display: grid;
+  margin-top: 4px;
+}
+
 .prospect-card label,
 .inline-check {
   display: inline-flex;

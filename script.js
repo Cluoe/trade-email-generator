@@ -657,9 +657,9 @@ function generateProspects(rules, position, data) {
   const productTitle = sentenceCase(data.product).replace(/\b\w/g, (char) => char.toUpperCase());
   return rules
     .flatMap((rule, ruleIndex) => {
-      const names = PROSPECT_NAME_PARTS[rule.key].slice(0, 2);
+      const names = PROSPECT_NAME_PARTS[rule.key].slice(0, 4);
       return names.map((part, index) => {
-        const sequence = ruleIndex * 2 + index;
+        const sequence = ruleIndex * 4 + index;
         const score = calculateLeadScore(rule.key, data.positioning, sequence);
         const companyName = `${data.country} ${part}`;
         const query = `${companyName} ${data.product}`;
@@ -700,12 +700,19 @@ function renderProspects() {
           <span><strong>Possible Pain Points:</strong> ${escapeHtml(lead.possiblePains.join("; "))}</span>
           <span><strong>Recommended Angle:</strong> ${escapeHtml(lead.angle)}</span>
         </div>
+        <div class="prospect-actions">
+          <button class="secondary-button" type="button" data-add-prospect="${escapeHtml(lead.id)}">☑ 加入客户池</button>
+        </div>
       </article>`
     )
     .join("");
 
   $("#prospectResults").classList.remove("empty-state");
   $("#prospectResults").innerHTML = html;
+
+  $$("[data-add-prospect]").forEach((button) => {
+    button.addEventListener("click", () => addProspectsToPool([button.dataset.addProspect], true));
+  });
 }
 
 function addSelectedProspectsToPool() {
@@ -715,6 +722,10 @@ function addSelectedProspectsToPool() {
     return;
   }
 
+  addProspectsToPool(selectedIds, true);
+}
+
+function addProspectsToPool(selectedIds, shouldNavigate = false) {
   const existingKeys = new Set(customerPool.map((lead) => `${lead.company}-${lead.country}`.toLowerCase()));
   const selected = currentProspects
     .filter((lead) => selectedIds.includes(lead.id))
@@ -733,7 +744,10 @@ function addSelectedProspectsToPool() {
   customerPool = [...selected, ...customerPool];
   savePool();
   renderCustomerPool();
-  setStatus(`已加入客户池 ${selected.length} 个客户。`);
+  if (shouldNavigate) {
+    switchPage("poolPage");
+  }
+  setStatus(selected.length ? `已加入客户池 ${selected.length} 个客户。` : "客户已在客户池中，无需重复添加。");
 }
 
 function initCustomerPool() {
