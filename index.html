@@ -3,107 +3,280 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>外贸客户画像开发助手</title>
+    <title>AI外贸客户开发与销售助手</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
     <main class="app-shell">
-      <section class="workspace">
-        <aside class="input-panel" aria-labelledby="pageTitle">
-          <div class="brand-row">
-            <span class="brand-mark" aria-hidden="true"></span>
-            <span>Customer Profile Outreach</span>
+      <header class="topbar">
+        <div class="brand">
+          <img src="assets/company/logo.png" alt="Company Logo" />
+          <div>
+            <p class="eyebrow">AI Sales Assistant</p>
+            <h1>AI外贸客户开发与销售助手</h1>
           </div>
+        </div>
+        <nav class="tabs" aria-label="功能导航">
+          <button class="tab-button active" type="button" data-page="assetsPage">Company Assets</button>
+          <button class="tab-button" type="button" data-page="developmentPage">客户开发</button>
+          <button class="tab-button" type="button" data-page="leadsPage">客户名单</button>
+          <button class="tab-button" type="button" data-page="batchPage">批量开发信</button>
+          <button class="tab-button" type="button" data-page="integrationsPage">未来接口</button>
+        </nav>
+      </header>
 
-          <header class="page-header">
-            <p class="eyebrow">外贸业务员专用</p>
-            <h1 id="pageTitle">外贸客户画像开发助手</h1>
-            <p class="intro">根据产品定位、报价、MOQ 和优势，自动生成适合开发的客户类型与英文开发话术。</p>
-          </header>
+      <section id="assetsPage" class="page active">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Company Assets</p>
+            <h2>公司资料中心</h2>
+          </div>
+          <p class="helper-text">这里的资料会自动进入开发信素材引用，发布到 GitHub Pages 后可作为客户查看链接。</p>
+        </div>
 
-          <form id="profileForm" class="profile-form">
-            <div class="field-grid">
-              <label>
-                <span>目标国家</span>
-                <input id="country" type="text" placeholder="例如：United States" required />
-              </label>
-
-              <label>
-                <span>产品名称</span>
-                <input id="product" type="text" placeholder="例如：solar garden lights" required />
-              </label>
+        <div class="assets-layout">
+          <aside class="settings-panel">
+            <div class="logo-card">
+              <img src="assets/company/logo.png" alt="Company Logo" />
+              <div>
+                <h3>公司联系方式</h3>
+                <p>官网、阿里店铺、WhatsApp 和邮箱会被自动带入邮件。</p>
+              </div>
             </div>
 
+            <form id="companyForm" class="stack-form">
+              <label>
+                <span>公司名称</span>
+                <input id="companyName" type="text" placeholder="例如：Inner Mongolia Heyuan Cat Litter" />
+              </label>
+              <label>
+                <span>公司官网</span>
+                <input id="companyWebsite" type="url" placeholder="https://..." />
+              </label>
+              <label>
+                <span>阿里国际站店铺</span>
+                <input id="companyAlibaba" type="url" placeholder="https://..." />
+              </label>
+              <div class="field-grid">
+                <label>
+                  <span>WhatsApp</span>
+                  <input id="companyWhatsapp" type="text" placeholder="+86..." />
+                </label>
+                <label>
+                  <span>邮箱</span>
+                  <input id="companyEmail" type="email" placeholder="sales@example.com" />
+                </label>
+              </div>
+              <button class="primary-button" type="submit">保存公司资料</button>
+            </form>
+          </aside>
+
+          <div class="asset-content">
+            <div class="asset-summary" id="assetSummary"></div>
+            <div id="assetSections" class="asset-sections"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="developmentPage" class="page">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Customer Development</p>
+            <h2>客户开发模块</h2>
+          </div>
+          <button id="copyDevelopmentButton" class="secondary-button" type="button" disabled>复制开发方案</button>
+        </div>
+
+        <div class="two-column">
+          <form id="developmentForm" class="panel stack-form">
+            <label>
+              <span>国家</span>
+              <input id="devCountry" type="text" placeholder="例如：United States" required />
+            </label>
+            <label>
+              <span>产品</span>
+              <input id="devProduct" type="text" placeholder="例如：bentonite cat litter" required />
+            </label>
             <label>
               <span>产品定位</span>
-              <select id="positioning" required>
+              <select id="devPositioning" required>
                 <option value="low">低端</option>
                 <option value="mid" selected>中端</option>
                 <option value="midHigh">中高端</option>
                 <option value="high">高端</option>
               </select>
             </label>
+            <button class="primary-button" type="submit">生成客户画像与搜索词</button>
+          </form>
 
+          <div class="panel output-box">
+            <div id="developmentOutput" class="empty-state">输入国家、产品和定位后，系统会生成客户画像、需求痛点和 Google / LinkedIn / B2B 搜索关键词。</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="leadsPage" class="page">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Lead Management</p>
+            <h2>客户名单管理</h2>
+          </div>
+          <div class="action-row">
+            <button id="exportLeadsButton" class="secondary-button" type="button">导出CSV</button>
+            <button id="clearLeadsButton" class="danger-button" type="button">清空名单</button>
+          </div>
+        </div>
+
+        <div class="lead-layout">
+          <form id="leadForm" class="panel stack-form">
             <div class="field-grid">
               <label>
-                <span>报价信息</span>
-                <input id="priceInfo" type="text" placeholder="例如：FOB $3.8-4.5 / pcs" required />
+                <span>Company</span>
+                <input id="leadCompany" type="text" required />
               </label>
-
               <label>
-                <span>MOQ</span>
-                <input id="moq" type="text" placeholder="例如：500 pcs" required />
+                <span>Website</span>
+                <input id="leadWebsite" type="url" />
               </label>
             </div>
+            <div class="field-grid">
+              <label>
+                <span>Email</span>
+                <input id="leadEmail" type="email" />
+              </label>
+              <label>
+                <span>Country</span>
+                <input id="leadCountry" type="text" required />
+              </label>
+            </div>
+            <div class="field-grid">
+              <label>
+                <span>Type</span>
+                <select id="leadType">
+                  <option>Importer / Distributor</option>
+                  <option>Wholesaler</option>
+                  <option>Retail Chain</option>
+                  <option>E-commerce Seller</option>
+                  <option>Private Label Brand</option>
+                  <option>Discount Store</option>
+                  <option>Project Buyer</option>
+                </select>
+              </label>
+              <label>
+                <span>Status</span>
+                <select id="leadStatus"></select>
+              </label>
+            </div>
+            <button class="primary-button" type="submit">添加客户</button>
+          </form>
 
+          <div class="panel import-panel">
+            <h3>导入客户名单</h3>
+            <p class="helper-text">支持 CSV，每行格式：Company, Website, Email, Country, Type, Status。可以带表头。</p>
+            <textarea id="csvInput" placeholder="Company,Website,Email,Country,Type,Status"></textarea>
+            <button id="importCsvButton" class="secondary-button" type="button">导入CSV文本</button>
+          </div>
+        </div>
+
+        <div class="panel table-panel">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Company</th>
+                  <th>Website</th>
+                  <th>Email</th>
+                  <th>Country</th>
+                  <th>Type</th>
+                  <th>Status</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="leadTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="batchPage" class="page">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Batch Outreach</p>
+            <h2>批量开发信</h2>
+          </div>
+          <button id="copyBatchButton" class="secondary-button" type="button" disabled>复制全部邮件</button>
+        </div>
+
+        <div class="two-column">
+          <form id="batchForm" class="panel stack-form">
             <label>
-              <span>主要产品优势</span>
-              <textarea
-                id="advantages"
-                rows="4"
-                placeholder="例如：防水等级高、太阳能转换效率高、支持OEM包装、交期快、质检严格"
-                required
-              ></textarea>
+              <span>产品</span>
+              <input id="batchProduct" type="text" placeholder="例如：bentonite cat litter" required />
             </label>
-
             <label>
-              <span>是否需要自动推荐客户类型</span>
-              <select id="autoRecommend" required>
-                <option value="yes" selected>是</option>
-                <option value="no">否</option>
+              <span>产品定位</span>
+              <select id="batchPositioning" required>
+                <option value="low">低端</option>
+                <option value="mid" selected>中端</option>
+                <option value="midHigh">中高端</option>
+                <option value="high">高端</option>
               </select>
             </label>
-
-            <button class="generate-button" type="submit">
-              <span class="plus-icon" aria-hidden="true"></span>
-              生成客户画像和开发话术
-            </button>
+            <label>
+              <span>主推卖点</span>
+              <textarea id="batchAdvantages" placeholder="例如：low dust, strong clumping, OEM packaging, factory direct supply"></textarea>
+            </label>
+            <button class="primary-button" type="submit">为客户名单生成开发信</button>
+            <p class="helper-text">不会自动发送邮件，只生成可复制内容，并自动带入官网、目录、图片、工厂和视频素材。</p>
           </form>
-        </aside>
 
-        <section class="output-panel" aria-label="生成结果">
-          <div class="output-header">
-            <div>
-              <p class="eyebrow">Generated Profiles</p>
-              <h2>客户画像与英文开发内容</h2>
-            </div>
-            <div class="output-actions">
-              <button id="copyAllButton" class="copy-button" type="button" disabled>
-                <span class="copy-icon" aria-hidden="true"></span>
-                全部复制
-              </button>
-              <p id="statusMessage" class="status-message" role="status"></p>
-            </div>
+          <div class="panel output-box">
+            <div id="batchOutput" class="empty-state">添加或导入客户名单后，可以批量生成不同开头、不同痛点、不同卖点的英文开发信。</div>
           </div>
+        </div>
+      </section>
 
-          <div id="summaryPanel" class="summary-panel">
-            填写左侧信息后，将自动生成 5 类适合开发的目标客户，以及每类客户的英文开发信、WhatsApp 首条消息和 Follow-up 邮件。
+      <section id="integrationsPage" class="page">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Reserved APIs</p>
+            <h2>未来接口预留</h2>
           </div>
+          <p class="helper-text">当前版本只生成邮件并管理客户，不会自动发送。</p>
+        </div>
 
-          <div id="profileResults" class="profile-results" aria-live="polite"></div>
-        </section>
+        <div class="integration-grid">
+          <article class="integration-card">
+            <h3>Gmail</h3>
+            <p>预留 OAuth 登录、草稿创建、发送记录同步接口。</p>
+            <span>Reserved</span>
+          </article>
+          <article class="integration-card">
+            <h3>Outlook</h3>
+            <p>预留 Microsoft Graph 邮件草稿和客户往来同步接口。</p>
+            <span>Reserved</span>
+          </article>
+          <article class="integration-card">
+            <h3>企业邮箱</h3>
+            <p>预留 SMTP / IMAP 或企业邮件 API 接入位置。</p>
+            <span>Reserved</span>
+          </article>
+        </div>
       </section>
     </main>
+
+    <div id="previewModal" class="preview-modal" aria-hidden="true">
+      <div class="preview-dialog">
+        <div class="preview-head">
+          <div>
+            <p class="eyebrow" id="previewType">Preview</p>
+            <h3 id="previewTitle">素材预览</h3>
+          </div>
+          <button id="closePreviewButton" class="icon-button" type="button" aria-label="关闭预览">×</button>
+        </div>
+        <div id="previewBody" class="preview-body"></div>
+      </div>
+    </div>
 
     <script src="script.js"></script>
   </body>

@@ -1,875 +1,768 @@
-const form = document.querySelector("#profileForm");
-const statusMessage = document.querySelector("#statusMessage");
-const summaryPanel = document.querySelector("#summaryPanel");
-const profileResults = document.querySelector("#profileResults");
-const copyAllButton = document.querySelector("#copyAllButton");
-
-const fields = {
-  country: document.querySelector("#country"),
-  product: document.querySelector("#product"),
-  positioning: document.querySelector("#positioning"),
-  priceInfo: document.querySelector("#priceInfo"),
-  moq: document.querySelector("#moq"),
-  advantages: document.querySelector("#advantages"),
-  autoRecommend: document.querySelector("#autoRecommend")
+const ASSET_BASE = "assets/company/";
+const STORAGE_KEYS = {
+  company: "ai_trade_company_assets_v1",
+  leads: "ai_trade_leads_v1"
 };
 
-const positioningProfiles = {
+const STATUS_OPTIONS = [
+  "New Lead",
+  "Contacted",
+  "Replied",
+  "Quotation Sent",
+  "Sample Sent",
+  "Negotiating",
+  "Won",
+  "Lost"
+];
+
+const DEFAULT_COMPANY = {
+  name: "Inner Mongolia Heyuan Cat Litter",
+  website: "",
+  alibaba: "",
+  whatsapp: "",
+  email: ""
+};
+
+const ASSETS = {
+  logo: { label: "Company Logo", type: "image", path: `${ASSET_BASE}logo.png` },
+  catalog: { label: "Product Catalog PDF", type: "pdf", path: `${ASSET_BASE}cat-litter-catalog.pdf` },
+  products: [
+    { label: "Raw Crushed Cat Litter - Gray", type: "image", path: `${ASSET_BASE}raw-crushed-gray.png` },
+    { label: "Raw Crushed Cat Litter - White", type: "image", path: `${ASSET_BASE}raw-crushed-white.png` },
+    { label: "Raw Crushed Cat Litter - Yellow", type: "image", path: `${ASSET_BASE}raw-crushed-yellow.png` },
+    { label: "Millet Cat Litter", type: "image", path: `${ASSET_BASE}millet-cat-litter.png` },
+    { label: "Water Soluble Cat Litter", type: "image", path: `${ASSET_BASE}water-soluble-cat-litter.png` },
+    { label: "Activated Carbon Ball Cat Litter", type: "image", path: `${ASSET_BASE}activated-carbon-ball-cat-litter.png` },
+    { label: "Activated Carbon Crushed Cat Litter", type: "image", path: `${ASSET_BASE}activated-carbon-crushed-cat-litter.png` },
+    { label: "Mixed Cat Litter", type: "image", path: `${ASSET_BASE}mixed-cat-litter.png` },
+    { label: "Crushed Cat Litter", type: "image", path: `${ASSET_BASE}crushed-cat-litter.png` },
+    { label: "Product Specification Sheet", type: "image", path: `${ASSET_BASE}product-spec-sheet.png` },
+    { label: "Customization Options", type: "image", path: `${ASSET_BASE}customization.avif` },
+    { label: "Product Detail 1", type: "image", path: `${ASSET_BASE}product-detail-1.avif` },
+    { label: "Product Detail 2", type: "image", path: `${ASSET_BASE}product-detail-2.avif` },
+    { label: "Product Detail 3", type: "image", path: `${ASSET_BASE}product-detail-3.png` },
+    { label: "Product Detail 4", type: "image", path: `${ASSET_BASE}product-detail-4.avif` }
+  ],
+  productPhotos: [
+    "product-photo-1.jpg",
+    "product-photo-2.jpg",
+    "product-photo-3.jpg",
+    "product-photo-4.jpg",
+    "product-photo-5.jpg",
+    "product-photo-6.png",
+    "product-photo-7.jpg",
+    "product-photo-8.jpg",
+    "product-photo-9.jpg",
+    "product-photo-10.jpg"
+  ].map((file, index) => ({ label: `Product Photo ${index + 1}`, type: "image", path: `${ASSET_BASE}${file}` })),
+  factory: [
+    { label: "Company Photo", type: "image", path: `${ASSET_BASE}company-photo.avif` },
+    { label: "Factory Photo", type: "image", path: `${ASSET_BASE}factory-1.avif` },
+    { label: "Factory Real View", type: "image", path: `${ASSET_BASE}factory-real.png` },
+    { label: "Production Photo", type: "image", path: `${ASSET_BASE}production-photo.png` },
+    { label: "Trade Show Photo", type: "image", path: `${ASSET_BASE}trade-show.avif` },
+    { label: "Trade Show Booth", type: "image", path: `${ASSET_BASE}trade-show-1.avif` }
+  ],
+  productionVideos: [
+    { label: "Raw Crushed Cat Litter Video", type: "video", path: `${ASSET_BASE}raw-crushed-cat-litter.mp4` },
+    { label: "Water Soluble Cat Litter Video", type: "video", path: `${ASSET_BASE}water-soluble-cat-litter.mp4` },
+    { label: "Activated Carbon Production Video", type: "video", path: `${ASSET_BASE}activated-carbon-crushed-process.mp4` },
+    { label: "Mixed Cat Litter Video", type: "video", path: `${ASSET_BASE}mixed-cat-litter.mp4` }
+  ],
+  productVideos: [
+    { label: "Activated Carbon Cat Litter Product Video", type: "video", path: `${ASSET_BASE}activated-carbon-crushed-cat-litter.mp4` }
+  ],
+  certificates: [
+    { label: "Certification File", type: "image", path: `${ASSET_BASE}certificate.avif` }
+  ]
+};
+
+const POSITIONING = {
   low: {
     label: "entry-level",
-    market: "price-sensitive and fast-moving",
-    buyerFocus: "landed cost, fast turnover, and simple reliable quality",
-    supplierTone: "cost control and stable basic quality"
+    focus: "price, fast turnover, and simple reliable quality",
+    buyer: "price-sensitive buyers"
   },
   mid: {
     label: "mid-range",
-    market: "balanced between price, quality, and repeat sales",
-    buyerFocus: "reliable quality, workable margin, and steady restocking",
-    supplierTone: "balanced value, consistent quality, and practical margins"
+    focus: "balanced cost, stable quality, and repeat orders",
+    buyer: "buyers who need margin and reliability"
   },
   midHigh: {
     label: "upper-mid-range",
-    market: "quality-focused with room for better design and packaging",
-    buyerFocus: "differentiation, stable quality, and better presentation",
-    supplierTone: "better materials, stronger presentation, and dependable supply"
+    focus: "better quality, improved presentation, and product differentiation",
+    buyer: "buyers who want a stronger retail or brand image"
   },
   high: {
     label: "premium",
-    market: "quality-driven and brand-sensitive",
-    buyerFocus: "product details, brand image, compliance awareness, and long-term consistency",
-    supplierTone: "premium positioning, customization, and strict quality control"
+    focus: "quality details, brand value, customization, and long-term consistency",
+    buyer: "premium buyers and brand-focused accounts"
   }
 };
 
-const countryInsights = {
-  "united states": "US buyers usually care about clear specs, stable quality, packaging details, and fast response",
-  usa: "US buyers usually care about clear specs, stable quality, packaging details, and fast response",
-  germany: "German buyers usually value precise product details, consistent quality, and dependable delivery",
-  "united kingdom": "UK buyers often look for clear communication, retail-friendly presentation, and reliable restocking",
-  france: "French buyers often care about presentation, design taste, and a polished retail feeling",
-  canada: "Canadian buyers usually value quality consistency, flexible logistics, and long-term supplier reliability",
-  australia: "Australian buyers often need dependable supply, clear product information, and manageable lead time",
-  japan: "Japanese buyers usually pay close attention to detail, packaging quality, and consistent standards",
-  "south korea": "Korean buyers often respond well to updated designs, fast samples, and clear product positioning",
-  "united arab emirates": "UAE buyers often look for attractive presentation, flexible order support, and responsive service",
-  "saudi arabia": "Saudi buyers often value steady supply, suitable packaging, and quick commercial response",
-  brazil: "Brazilian buyers usually care about competitive pricing, stable lead time, and practical import support",
-  mexico: "Mexican buyers often need flexible order support, competitive pricing, and reliable follow-up"
-};
-
-const targetProfiles = [
+const CUSTOMER_TYPES = [
   {
-    id: "importerDistributor",
-    name: "Importer / Regional Distributor",
-    fit: {
-      low: 4,
-      mid: 5,
-      midHigh: 5,
-      high: 3
-    },
-    moqFit: {
-      low: 2,
-      medium: 4,
-      high: 5,
-      unknown: 3
-    },
-    keywords: {
-      capacity: 2,
-      certificate: 1,
-      qc: 1
-    },
-    needs: [
-      "A supplier who can support repeat orders and stable shipment planning",
-      "Clear pricing, packing details, and export documents",
-      "Products that can be distributed across several local channels"
-    ],
-    pains: [
-      "Unstable lead time from suppliers",
-      "Quality differences between samples and bulk orders",
-      "Slow quotation updates and unclear shipment information"
-    ],
-    angle: "Position the offer as a dependable supply source for regional distribution, with clear price, MOQ, and shipment support.",
-    subject: [
-      "{product} supply option for distributors in {country}",
-      "Reliable {product} supplier for your {country} distribution channels",
-      "Can we support your {product} imports?"
-    ],
-    emailOpening: [
-      "I am reaching out because importers and regional distributors often need suppliers who can keep pricing, quality, and shipment timing under control.",
-      "Your market looks suitable for a stable {product} supply program, especially for buyers handling repeat distribution.",
-      "I wanted to introduce our {product} as a possible option for your import and distribution business."
-    ],
-    whatsappOpening: "Hi, this is [Your Name] from [Your Company]. We supply {product} for importers and regional distributors in markets like {country}.",
-    followupOpening: "I wanted to follow up in case you are still reviewing new supply options for your distribution channels."
+    name: "Importer / Distributor",
+    needs: ["stable factory supply", "clear export documents", "repeatable quality", "reasonable MOQ for distribution"],
+    pains: ["unstable lead time", "quality difference between sample and bulk order", "slow supplier response"],
+    angle: "Position the factory as a stable supply partner with catalog, factory photos, and production video to reduce sourcing risk.",
+    google: ["{product} importer {country}", "{product} distributor {country}", "{product} wholesale supplier {country}"],
+    linkedin: ["{product} importer {country}", "sourcing manager {product} {country}", "import manager pet supplies {country}"],
+    b2b: ["{product} buyer directory {country}", "{product} importers list {country}", "pet supplies distributor {country}"]
   },
   {
-    id: "wholesaler",
-    name: "Wholesaler / Cash & Carry Buyer",
-    fit: {
-      low: 5,
-      mid: 5,
-      midHigh: 3,
-      high: 2
-    },
-    moqFit: {
-      low: 2,
-      medium: 4,
-      high: 5,
-      unknown: 3
-    },
-    keywords: {
-      price: 2,
-      stock: 2,
-      fast: 1
-    },
-    needs: [
-      "Fast-moving products with enough margin for resale",
-      "Simple, clear packaging and stable repeat supply",
-      "A price level that works for bulk purchasing"
-    ],
-    pains: [
-      "Low margin after freight and local costs",
-      "Suppliers changing prices too often",
-      "Slow restocking during peak sales periods"
-    ],
-    angle: "Lead with margin, practical MOQ, and fast repeat supply. Avoid sounding too premium unless the product positioning supports it.",
-    subject: [
-      "{product} option with workable margin for {country} wholesalers",
-      "Bulk supply idea for {product}",
-      "Price and MOQ reference for {product}"
-    ],
-    emailOpening: [
-      "I know wholesalers usually need products that are easy to sell again, not just nice on paper.",
-      "For wholesale buyers, the key point is usually whether the product can move quickly with a workable margin.",
-      "I am contacting you with a practical {product} supply option for bulk sales."
-    ],
-    whatsappOpening: "Hi, we supply {product} for wholesale buyers. The focus is workable price, stable quality, and repeat supply.",
-    followupOpening: "Just following up to see whether a bulk supply option for {product} is useful for your current wholesale plan."
+    name: "Wholesaler",
+    needs: ["workable margin", "bulk supply", "simple packaging", "fast reorder support"],
+    pains: ["low profit after freight", "price changes", "stock shortage during peak season"],
+    angle: "Lead with price range, MOQ, product photos, and fast-selling product options.",
+    google: ["{product} wholesaler {country}", "{product} bulk buyer {country}", "pet product wholesaler {country}"],
+    linkedin: ["wholesale buyer {product} {country}", "pet supplies wholesaler {country}", "purchasing manager wholesale {country}"],
+    b2b: ["{product} wholesale marketplace {country}", "{product} bulk import {country}", "pet wholesale directory {country}"]
   },
   {
-    id: "retailChain",
     name: "Retail Chain / Store Buyer",
-    fit: {
-      low: 2,
-      mid: 5,
-      midHigh: 5,
-      high: 4
-    },
-    moqFit: {
-      low: 4,
-      medium: 4,
-      high: 3,
-      unknown: 3
-    },
-    keywords: {
-      packaging: 2,
-      design: 1,
-      qc: 1
-    },
-    needs: [
-      "Retail-ready products with clear selling points",
-      "Consistent quality across repeat batches",
-      "Packaging and product information suitable for shelves"
-    ],
-    pains: [
-      "Products look good in photos but weak on store shelves",
-      "Packaging does not match retail requirements",
-      "Difficult reorder planning when supplier lead time changes"
-    ],
-    angle: "Sell the product as a retail-ready item with clear display value, stable supply, and fewer after-sale issues.",
-    subject: [
-      "Retail-ready {product} for the {country} market",
-      "{product} options for store buyers in {country}",
-      "New shelf-ready {product} supply idea"
-    ],
-    emailOpening: [
-      "I am writing because retail buyers usually need products that are ready to sell, easy to explain, and stable for repeat orders.",
-      "For store channels, product presentation and reliable restocking are just as important as price.",
-      "I wanted to share a {product} option that may fit retail buyers in {country}."
-    ],
-    whatsappOpening: "Hi, we supply retail-ready {product} with clear specs and packing options for store channels.",
-    followupOpening: "I wanted to follow up and see if retail-ready {product} options are relevant to your store buying plan."
+    needs: ["retail-ready products", "clear product selling points", "stable restocking", "packaging suitable for shelves"],
+    pains: ["weak packaging presentation", "unclear specifications", "supplier quality inconsistency"],
+    angle: "Use product photos, specification sheet, and catalog to show retail readiness and reduce buyer evaluation work.",
+    google: ["pet store buyer {country}", "{product} retail chain buyer {country}", "pet shop supplier {country}"],
+    linkedin: ["category buyer pet supplies {country}", "retail buyer {product} {country}", "pet retail purchasing {country}"],
+    b2b: ["pet store chain {country}", "{product} retailer directory {country}", "retail buyer list pet supplies {country}"]
   },
   {
-    id: "ecommerceSeller",
-    name: "E-commerce Seller / Marketplace Store",
-    fit: {
-      low: 4,
-      mid: 5,
-      midHigh: 4,
-      high: 3
-    },
-    moqFit: {
-      low: 5,
-      medium: 4,
-      high: 2,
-      unknown: 3
-    },
-    keywords: {
-      photo: 2,
-      sample: 2,
-      lowmoq: 2,
-      packaging: 1
-    },
-    needs: [
-      "Products that are easy to test and list online",
-      "Clear specs, photos, and selling points",
-      "Packing that can handle online order handling"
-    ],
-    pains: [
-      "High MOQ makes product testing risky",
-      "Poor product information slows down listing work",
-      "Packaging issues lead to bad reviews or returns"
-    ],
-    angle: "Keep the message short and test-oriented. Emphasize sample support, listing materials, and a practical first order.",
-    subject: [
-      "{product} idea for your online store",
-      "Testable {product} option for {country} e-commerce sellers",
-      "Photos, specs, and price reference for {product}"
-    ],
-    emailOpening: [
-      "I am contacting you because e-commerce sellers usually need products that can be tested quickly and explained clearly online.",
-      "Online sellers care about good photos, reliable packing, and products that can earn repeat reviews.",
-      "I wanted to share a practical {product} option for marketplace sellers in {country}."
-    ],
-    whatsappOpening: "Hi, we supply {product} that can be suitable for e-commerce testing and online listings.",
-    followupOpening: "Just following up to see if you would like a few testable {product} options for your online store."
+    name: "E-commerce Seller",
+    needs: ["easy product testing", "clear photos and specs", "selling points for listings", "safe packaging for delivery"],
+    pains: ["high MOQ for testing", "poor listing materials", "bad reviews caused by packaging or dust"],
+    angle: "Keep the message short and offer photos, video, and a small first-order discussion.",
+    google: ["{product} Amazon seller {country}", "{product} online store {country}", "pet supplies ecommerce seller {country}"],
+    linkedin: ["ecommerce seller pet supplies {country}", "marketplace seller {product}", "online retailer {product} {country}"],
+    b2b: ["{product} online retailer {country}", "pet ecommerce directory {country}", "marketplace seller pet products {country}"]
   },
   {
-    id: "privateLabelBrand",
-    name: "Private Label Brand Owner",
-    fit: {
-      low: 1,
-      mid: 3,
-      midHigh: 5,
-      high: 5
-    },
-    moqFit: {
-      low: 4,
-      medium: 4,
-      high: 3,
-      unknown: 3
-    },
-    keywords: {
-      oem: 3,
-      odm: 3,
-      custom: 3,
-      logo: 2,
-      packaging: 2,
-      design: 2
-    },
-    needs: [
-      "Customization options for logo, packaging, or product details",
-      "Stable quality that protects brand reputation",
-      "A supplier who can support long-term product development"
-    ],
-    pains: [
-      "Factories only sell standard models with little flexibility",
-      "Packaging and quality are not consistent enough for a brand",
-      "Communication is slow when discussing custom details"
-    ],
-    angle: "Approach with customization, quality consistency, and brand protection rather than only price.",
-    subject: [
-      "Private label {product} support for your {country} market",
-      "Custom {product} options for brand buyers",
-      "{product} OEM idea with stable quality support"
-    ],
-    emailOpening: [
-      "I am reaching out because private label buyers usually need more than a standard product list.",
-      "For brand owners, product consistency, packaging, and customization details can decide whether a supplier is useful.",
-      "I wanted to introduce our {product} as a possible private label option for the {country} market."
-    ],
-    whatsappOpening: "Hi, we support private label {product}, including logo and packaging options depending on your order plan.",
-    followupOpening: "I wanted to follow up and see if private label or customized {product} is something you are reviewing."
-  },
-  {
-    id: "discountChannel",
-    name: "Discount Store / Value Retail Buyer",
-    fit: {
-      low: 5,
-      mid: 4,
-      midHigh: 2,
-      high: 1
-    },
-    moqFit: {
-      low: 2,
-      medium: 4,
-      high: 5,
-      unknown: 3
-    },
-    keywords: {
-      price: 3,
-      cheap: 2,
-      stock: 2
-    },
-    needs: [
-      "A sharp price point for value-driven consumers",
-      "Large quantity availability and simple packaging",
-      "Stable supply for promotion or seasonal sales"
-    ],
-    pains: [
-      "Product cost leaves little room for promotion",
-      "Quality is too unstable for high-volume value channels",
-      "Suppliers cannot support urgent quantity changes"
-    ],
-    angle: "Focus on price point, volume, and basic quality control. Keep the message direct and commercially practical.",
-    subject: [
-      "Value-focused {product} supply for {country}",
-      "{product} option for discount and promotion channels",
-      "Cost-effective {product} with MOQ reference"
-    ],
-    emailOpening: [
-      "I am contacting you with a value-focused {product} option that may work for discount or promotion channels.",
-      "For value retail buyers, the product needs to hit a practical price point without creating quality problems.",
-      "I wanted to share a cost-effective {product} supply option for the {country} market."
-    ],
-    whatsappOpening: "Hi, we have a cost-effective {product} option for value retail and promotion channels.",
-    followupOpening: "Following up to check whether a value-focused {product} offer could fit your upcoming buying plan."
-  },
-  {
-    id: "premiumBoutique",
-    name: "Premium Boutique / Specialty Store",
-    fit: {
-      low: 1,
-      mid: 2,
-      midHigh: 5,
-      high: 5
-    },
-    moqFit: {
-      low: 5,
-      medium: 4,
-      high: 1,
-      unknown: 3
-    },
-    keywords: {
-      design: 3,
-      premium: 3,
-      packaging: 2,
-      quality: 2
-    },
-    needs: [
-      "Better design, nicer finish, or stronger product story",
-      "Smaller trial quantities with a premium presentation",
-      "Reliable quality that supports a higher retail price"
-    ],
-    pains: [
-      "Mass-market products look too common",
-      "Premium packaging is hard to source at a reasonable MOQ",
-      "Quality details are not stable enough for specialty buyers"
-    ],
-    angle: "Use a softer, quality-led message. Highlight differentiation, finish, and premium retail presentation.",
-    subject: [
-      "Premium {product} option for specialty stores",
-      "Upper-range {product} for the {country} market",
-      "A differentiated {product} idea for boutique buyers"
-    ],
-    emailOpening: [
-      "I am reaching out because specialty stores often need products that feel different from standard mass-market options.",
-      "For boutique buyers, the detail, finish, and presentation of a product can be more important than the lowest price.",
-      "I wanted to introduce an upper-range {product} option that may fit premium retail channels in {country}."
-    ],
-    whatsappOpening: "Hi, we supply upper-range {product} with better presentation and quality details for specialty retail channels.",
-    followupOpening: "I wanted to follow up to see if a more differentiated {product} option could be useful for your retail selection."
-  },
-  {
-    id: "projectBuyer",
-    name: "Project Buyer / Contractor",
-    fit: {
-      low: 2,
-      mid: 4,
-      midHigh: 5,
-      high: 4
-    },
-    moqFit: {
-      low: 2,
-      medium: 4,
-      high: 5,
-      unknown: 3
-    },
-    keywords: {
-      specification: 3,
-      certificate: 2,
-      qc: 2,
-      waterproof: 1
-    },
-    needs: [
-      "Stable specifications for project quotations",
-      "Reliable lead time and clear technical details",
-      "Supplier support for planned quantity and documentation"
-    ],
-    pains: [
-      "Specs are unclear before quotation",
-      "Delivery delay affects the whole project schedule",
-      "After-sales risk is high when supplier quality is unstable"
-    ],
-    angle: "Speak in a project-support tone. Emphasize specifications, schedule, documentation, and risk control.",
-    subject: [
-      "{product} supply support for project buyers",
-      "Stable {product} option for {country} projects",
-      "Project-ready {product} with quotation details"
-    ],
-    emailOpening: [
-      "I am contacting you because project buyers usually need clear specifications and dependable delivery, not just a low unit price.",
-      "For project purchasing, supplier response speed and stable product details can save a lot of back-and-forth work.",
-      "I wanted to share a project-ready {product} supply option for buyers in {country}."
-    ],
-    whatsappOpening: "Hi, we supply {product} for project buyers and can provide specs, packing details, MOQ, and price reference.",
-    followupOpening: "I wanted to follow up and see if you need {product} details for any upcoming project quotation."
-  },
-  {
-    id: "giftDistributor",
-    name: "Gift & Promotional Product Distributor",
-    fit: {
-      low: 4,
-      mid: 5,
-      midHigh: 4,
-      high: 2
-    },
-    moqFit: {
-      low: 4,
-      medium: 5,
-      high: 4,
-      unknown: 3
-    },
-    keywords: {
-      logo: 3,
-      custom: 2,
-      fast: 2,
-      packaging: 1
-    },
-    needs: [
-      "Products suitable for campaigns, events, or corporate gifts",
-      "Logo or packaging customization with clear lead time",
-      "A supplier who can handle repeat promotional orders"
-    ],
-    pains: [
-      "Logo proofing and production take too long",
-      "MOQ is not practical for campaign orders",
-      "Packaging does not match promotional use"
-    ],
-    angle: "Pitch the product as a campaign-friendly option with customization, clear MOQ, and fast sample confirmation.",
-    subject: [
-      "Promotional {product} idea for {country} buyers",
-      "Custom {product} option for gift distributors",
-      "{product} for campaigns and corporate gifts"
-    ],
-    emailOpening: [
-      "I am writing because gift and promotional distributors often need products that can be customized and delivered within a clear schedule.",
-      "For promotional orders, logo options, MOQ, and lead time usually matter as much as the product itself.",
-      "I wanted to share a {product} option that may work for campaigns, events, or corporate gift channels."
-    ],
-    whatsappOpening: "Hi, we supply {product} for gift and promotional orders, with customization options depending on quantity.",
-    followupOpening: "Following up to check whether customized {product} could fit any upcoming campaign or gift order."
+    name: "Private Label Brand",
+    needs: ["OEM packaging", "logo customization", "consistent quality", "long-term product development"],
+    pains: ["standard products lack differentiation", "custom packaging MOQ is unclear", "supplier cannot support brand details"],
+    angle: "Sell customization, quality control, product videos, and factory credibility instead of only price.",
+    google: ["private label {product} brand {country}", "pet brand owner {country}", "OEM {product} buyer {country}"],
+    linkedin: ["founder pet brand {country}", "private label buyer pet supplies", "brand manager {product} {country}"],
+    b2b: ["private label pet supplies {country}", "OEM pet product buyer {country}", "{product} brand directory {country}"]
   }
 ];
 
-let generatedText = "";
+let company = loadCompany();
+let leads = loadLeads();
+let latestDevelopmentText = "";
+let latestBatchText = "";
+
+const $ = (selector) => document.querySelector(selector);
+const $$ = (selector) => Array.from(document.querySelectorAll(selector));
+
+function loadCompany() {
+  try {
+    return { ...DEFAULT_COMPANY, ...JSON.parse(localStorage.getItem(STORAGE_KEYS.company)) };
+  } catch (error) {
+    return { ...DEFAULT_COMPANY };
+  }
+}
+
+function saveCompany() {
+  localStorage.setItem(STORAGE_KEYS.company, JSON.stringify(company));
+}
+
+function loadLeads() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEYS.leads)) || [];
+  } catch (error) {
+    return [];
+  }
+}
+
+function saveLeads() {
+  localStorage.setItem(STORAGE_KEYS.leads, JSON.stringify(leads));
+}
 
 function cleanText(value) {
-  return value.trim().replace(/\s+/g, " ");
+  return String(value || "").trim().replace(/\s+/g, " ");
 }
 
-function pick(items) {
-  return items[Math.floor(Math.random() * items.length)];
-}
-
-function shuffle(items) {
-  return [...items].sort(() => Math.random() - 0.5);
+function escapeHtml(value) {
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 function sentenceCase(text) {
-  if (!text) {
-    return "";
-  }
+  const clean = cleanText(text);
+  return clean ? clean.charAt(0).toUpperCase() + clean.slice(1) : "";
+}
 
-  return text.charAt(0).toUpperCase() + text.slice(1);
+function pick(items, seed = Math.random()) {
+  return items[Math.floor(seed * items.length) % items.length];
 }
 
 function fill(template, data) {
   return template
     .replaceAll("{product}", data.product)
     .replaceAll("{Product}", sentenceCase(data.product))
-    .replaceAll("{country}", data.country)
-    .replaceAll("{price}", data.priceInfo)
-    .replaceAll("{moq}", data.moq);
+    .replaceAll("{country}", data.country);
 }
 
-function splitAdvantages(text) {
-  return text
-    .split(/[,，;；、\n]/)
-    .map((item) => cleanText(item))
-    .filter(Boolean)
-    .slice(0, 6);
-}
-
-function getCountryInsight(country) {
-  return countryInsights[country.toLowerCase()] || `buyers in ${country} usually value reliable quality, clear communication, and stable delivery`;
-}
-
-function getMoqTier(moq) {
-  const match = moq.replace(/,/g, "").match(/\d+/);
-
-  if (!match) {
-    return "unknown";
+function makeId() {
+  if (window.crypto && window.crypto.randomUUID) {
+    return window.crypto.randomUUID();
   }
 
-  const value = Number(match[0]);
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
 
-  if (value <= 200) {
-    return "low";
+function absoluteUrl(path) {
+  try {
+    return new URL(path, window.location.href).href;
+  } catch (error) {
+    return path;
   }
+}
 
-  if (value <= 1500) {
-    return "medium";
+function normalizeUrl(value) {
+  const clean = cleanText(value);
+  if (!clean) {
+    return "";
   }
-
-  return "high";
+  return /^https?:\/\//i.test(clean) ? clean : `https://${clean}`;
 }
 
-function getMoqSignal(tier, moq) {
-  const signals = {
-    low: `The MOQ of ${moq} is friendly for trial orders and smaller first tests.`,
-    medium: `The MOQ of ${moq} is practical for serious buyers who want to test and reorder.`,
-    high: `The MOQ of ${moq} is better suited for buyers with regular volume or distribution capacity.`,
-    unknown: `The MOQ is listed as ${moq}, so it should be explained clearly before quotation.`
-  };
-
-  return signals[tier];
+function contactLine() {
+  const parts = [];
+  if (company.website) parts.push(`Website: ${normalizeUrl(company.website)}`);
+  if (company.alibaba) parts.push(`Alibaba Store: ${normalizeUrl(company.alibaba)}`);
+  if (company.whatsapp) parts.push(`WhatsApp: ${company.whatsapp}`);
+  if (company.email) parts.push(`Email: ${company.email}`);
+  return parts.length ? parts.join("\n") : "Website / Alibaba / WhatsApp / Email: Please add in Company Assets";
 }
 
-function getAdvantageScore(profile, advantagesText) {
-  const lower = advantagesText.toLowerCase();
-  let score = 0;
-
-  Object.keys(profile.keywords).forEach((keyword) => {
-    if (lower.includes(keyword)) {
-      score += profile.keywords[keyword];
-    }
-  });
-
-  return score;
-}
-
-function collectData() {
-  return {
-    country: cleanText(fields.country.value),
-    product: cleanText(fields.product.value),
-    positioning: fields.positioning.value,
-    priceInfo: cleanText(fields.priceInfo.value),
-    moq: cleanText(fields.moq.value),
-    advantagesText: cleanText(fields.advantages.value),
-    autoRecommend: fields.autoRecommend.value
-  };
-}
-
-function selectProfiles(data, signals) {
-  const defaultIds = ["importerDistributor", "wholesaler", "retailChain", "ecommerceSeller", "privateLabelBrand"];
-
-  if (data.autoRecommend === "no") {
-    return defaultIds.map((id) => targetProfiles.find((profile) => profile.id === id));
-  }
-
-  return targetProfiles
-    .map((profile) => ({
-      profile,
-      score:
-        (profile.fit[data.positioning] || 0) +
-        (profile.moqFit[signals.moqTier] || 0) +
-        getAdvantageScore(profile, data.advantagesText) +
-        Math.random() * 0.35
-    }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 5)
-    .map((item) => item.profile);
-}
-
-function buildNeeds(profile, data, signals) {
-  const positioning = positioningProfiles[data.positioning];
-
+function assetLinkBlock() {
+  const productPhoto = ASSETS.products[0];
+  const factoryPhoto = ASSETS.factory[2];
+  const video = ASSETS.productionVideos[0];
   return [
-    ...profile.needs,
-    `${sentenceCase(positioning.label)} ${data.product} positioned for a ${positioning.market} market`,
-    `Price reference around ${data.priceInfo} and MOQ at ${data.moq}`
-  ].slice(0, 5);
-}
-
-function buildPains(profile, data, signals) {
-  const positioning = positioningProfiles[data.positioning];
-  const dynamicPain =
-    signals.moqTier === "high"
-      ? "A high first order quantity can slow down buyer decisions if the offer is not clearly justified"
-      : "Buyers may hesitate if the first order does not feel easy to test";
-
-  return [...profile.pains, dynamicPain, `They may compare your ${positioning.label} positioning with cheaper alternatives`].slice(0, 5);
-}
-
-function buildAngle(profile, data, signals, advantages) {
-  const positioning = positioningProfiles[data.positioning];
-  const advantageText = advantages.slice(0, 3).join(", ");
-
-  return `${profile.angle} For ${data.country}, connect the message with ${positioning.supplierTone}. Mention ${data.priceInfo}, MOQ ${data.moq}, and lead with these advantages: ${advantageText}. ${signals.moqSignal}`;
-}
-
-function buildEmail(profile, data, signals, advantages, needs, pains, angle) {
-  const positioning = positioningProfiles[data.positioning];
-  const subject = fill(pick(profile.subject), data);
-  const opening = fill(pick(profile.emailOpening), data);
-  const countryInsight = getCountryInsight(data.country);
-  const advantageBullets = advantages.map((item) => `- ${sentenceCase(item)}`).join("\n");
-  const needLine = needs[0].charAt(0).toLowerCase() + needs[0].slice(1);
-  const painLine = pains[0].charAt(0).toLowerCase() + pains[0].slice(1);
-  const ctaOptions = [
-    "Would you be open to receiving our catalog, photos, and a short quotation for review?",
-    "May I send you a few suitable models with price, MOQ, packing details, and lead time?",
-    "If this category is relevant, I can prepare a quick product list for your market."
-  ];
-
-  return `Subject: ${subject}
-
-Dear Purchasing Manager,
-
-${opening}
-
-For the ${data.country} market, ${countryInsight}. That is why I would position our ${data.product} as a ${positioning.label} option focused on ${positioning.buyerFocus}.
-
-For your type of business, the likely need is ${needLine}. A common issue is ${painLine}. Our offer is meant to make this easier with a clear price reference (${data.priceInfo}) and MOQ (${data.moq}).
-
-Main advantages:
-${advantageBullets}
-
-${signals.moqSignal}
-
-${pick(ctaOptions)}
-
-Best regards,
-[Your Name]
-[Your Company]
-[Email / WhatsApp / Website]`;
-}
-
-function buildWhatsApp(profile, data, signals, advantages) {
-  const positioning = positioningProfiles[data.positioning];
-  const opening = fill(profile.whatsappOpening, data);
-  const advantageText = advantages.slice(0, 2).join(", ");
-  const options = [
-    `${opening} Our current offer is ${data.priceInfo}, MOQ ${data.moq}. It may fit buyers looking for ${positioning.supplierTone}. Main points: ${advantageText}. May I send photos and details?`,
-    `${opening} I think it may be useful if you are checking ${positioning.label} options. Price reference: ${data.priceInfo}; MOQ: ${data.moq}. Can I share a short catalog?`,
-    `${opening} We can support ${advantageText}. If ${data.product} is on your sourcing list, I can send specs, packing details, and quotation.`
-  ];
-
-  return pick(options);
-}
-
-function buildFollowup(profile, data, signals, advantages) {
-  const positioning = positioningProfiles[data.positioning];
-  const subject = `Follow-up: ${sentenceCase(data.product)} for ${profile.name}`;
-  const advantageText = advantages.slice(0, 3).join(", ");
-
-  return `Subject: ${subject}
-
-Dear Purchasing Manager,
-
-${profile.followupOpening}
-
-I believe this could still be relevant if you are looking for a ${positioning.label} ${data.product} option for the ${data.country} market. The current reference is ${data.priceInfo}, with MOQ ${data.moq}.
-
-The main points I would suggest checking first are ${advantageText}. These are usually important when buyers compare suppliers and decide whether to test a first order.
-
-Would it be helpful if I sent a short list with product photos, specifications, packing details, and quotation?
-
-Best regards,
-[Your Name]`;
-}
-
-function buildProfileResult(profile, data, signals, index) {
-  const advantages = splitAdvantages(data.advantagesText);
-  const needs = buildNeeds(profile, data, signals);
-  const pains = buildPains(profile, data, signals);
-  const angle = buildAngle(profile, data, signals, advantages);
-  const email = buildEmail(profile, data, signals, advantages, needs, pains, angle);
-  const whatsapp = buildWhatsApp(profile, data, signals, advantages);
-  const followup = buildFollowup(profile, data, signals, advantages);
-  const fitReason = `${profile.name} is suitable because your product is ${positioningProfiles[data.positioning].label}, the price reference is ${data.priceInfo}, and the MOQ is ${data.moq}.`;
-
-  return {
-    index,
-    profile,
-    fitReason,
-    needs,
-    pains,
-    angle,
-    email,
-    whatsapp,
-    followup
-  };
-}
-
-function profileToText(result) {
-  return `Target Customer ${result.index}: ${result.profile.name}
-
-Possible Needs:
-${result.needs.map((item) => `- ${item}`).join("\n")}
-
-Common Pain Points:
-${result.pains.map((item) => `- ${item}`).join("\n")}
-
-Development Angle:
-${result.angle}
-
-English Development Email:
-${result.email}
-
-WhatsApp First Message:
-${result.whatsapp}
-
-Follow-up Email:
-${result.followup}`;
-}
-
-function createElement(tag, className, text) {
-  const element = document.createElement(tag);
-
-  if (className) {
-    element.className = className;
-  }
-
-  if (text !== undefined) {
-    element.textContent = text;
-  }
-
-  return element;
-}
-
-function createCopyButton(text, label = "复制") {
-  const button = createElement("button", "copy-inline", label);
-  button.type = "button";
-  button.addEventListener("click", async () => {
-    const copied = await copyText(text);
-    setStatus(copied ? "已复制到剪贴板。" : "复制失败，请手动选择内容。");
-  });
-
-  return button;
-}
-
-function createListBlock(title, items) {
-  const block = createElement("div", "info-block");
-  block.appendChild(createElement("h4", "", title));
-
-  const list = createElement("ul");
-  items.forEach((item) => {
-    list.appendChild(createElement("li", "", item));
-  });
-
-  block.appendChild(list);
-  return block;
-}
-
-function createTextAreaBlock(title, value, compact = false) {
-  const block = createElement("div", compact ? "content-block compact" : "content-block");
-  const head = createElement("div", "content-head");
-  head.appendChild(createElement("h4", "", title));
-  head.appendChild(createCopyButton(value));
-
-  const area = createElement("textarea");
-  area.readOnly = true;
-  area.value = value;
-
-  block.appendChild(head);
-  block.appendChild(area);
-  return block;
-}
-
-function renderResults(results, data, signals) {
-  profileResults.innerHTML = "";
-  generatedText = results.map(profileToText).join("\n\n------------------------------\n\n");
-
-  summaryPanel.textContent = `${data.autoRecommend === "yes" ? "已自动推荐" : "已使用通用"} 5 类目标客户。定位：${positioningProfiles[data.positioning].label}；报价：${data.priceInfo}；MOQ：${data.moq}。${signals.moqSignal}`;
-
-  results.forEach((result) => {
-    const card = createElement("article", "profile-card");
-    const header = createElement("div", "profile-card-header");
-    const titleWrap = createElement("div");
-
-    titleWrap.appendChild(createElement("span", "profile-number", String(result.index)));
-    titleWrap.appendChild(createElement("h3", "", result.profile.name));
-    titleWrap.appendChild(createElement("p", "fit-line", result.fitReason));
-
-    header.appendChild(titleWrap);
-    header.appendChild(createCopyButton(profileToText(result), "复制整张画像"));
-    card.appendChild(header);
-
-    const infoGrid = createElement("div", "profile-info-grid");
-    infoGrid.appendChild(createListBlock("可能需求", result.needs));
-    infoGrid.appendChild(createListBlock("常见痛点", result.pains));
-    infoGrid.appendChild(createListBlock("建议优先沟通", shuffle(["Price and MOQ", "Product fit", "Packing", "Lead time", "Sample plan"]).slice(0, 3)));
-    card.appendChild(infoGrid);
-
-    const angleBlock = createElement("div", "angle-block");
-    angleBlock.appendChild(createElement("h4", "", "开发角度"));
-    angleBlock.appendChild(createElement("p", "", result.angle));
-    card.appendChild(angleBlock);
-
-    const contentGrid = createElement("div", "content-grid");
-    contentGrid.appendChild(createTextAreaBlock("专属英文开发信", result.email));
-    contentGrid.appendChild(createTextAreaBlock("专属 WhatsApp 首条消息", result.whatsapp, true));
-    contentGrid.appendChild(createTextAreaBlock("专属 Follow-up 邮件", result.followup));
-    card.appendChild(contentGrid);
-
-    profileResults.appendChild(card);
-  });
-
-  copyAllButton.disabled = false;
+    company.website ? `Company website: ${normalizeUrl(company.website)}` : "Company website: please add in Company Assets",
+    company.alibaba ? `Alibaba store: ${normalizeUrl(company.alibaba)}` : "Alibaba store: please add in Company Assets",
+    `Product catalog: ${absoluteUrl(ASSETS.catalog.path)}`,
+    `Product photos: ${absoluteUrl(productPhoto.path)}`,
+    `Factory photos: ${absoluteUrl(factoryPhoto.path)}`,
+    `Factory / product video: ${absoluteUrl(video.path)}`,
+    company.whatsapp ? `WhatsApp: ${company.whatsapp}` : "WhatsApp: please add in Company Assets"
+  ].join("\n");
 }
 
 function setStatus(message) {
-  statusMessage.textContent = message;
+  const status = $("#statusMessage");
+  if (status) status.textContent = message;
 }
 
 async function copyText(text) {
-  if (!text) {
-    return false;
-  }
-
+  if (!text) return false;
   try {
     await navigator.clipboard.writeText(text);
     return true;
   } catch (error) {
-    const temporaryField = document.createElement("textarea");
-    temporaryField.value = text;
-    temporaryField.setAttribute("readonly", "");
-    temporaryField.style.position = "fixed";
-    temporaryField.style.left = "-999px";
-    document.body.appendChild(temporaryField);
-    temporaryField.select();
+    const field = document.createElement("textarea");
+    field.value = text;
+    field.setAttribute("readonly", "");
+    field.style.position = "fixed";
+    field.style.left = "-999px";
+    document.body.appendChild(field);
+    field.select();
     const copied = document.execCommand("copy");
-    temporaryField.remove();
+    field.remove();
     return copied;
   }
 }
 
-form.addEventListener("submit", (event) => {
-  event.preventDefault();
+function createElement(tag, className, text) {
+  const element = document.createElement(tag);
+  if (className) element.className = className;
+  if (text !== undefined) element.textContent = text;
+  return element;
+}
 
-  const data = collectData();
+function initTabs() {
+  $$(".tab-button").forEach((button) => {
+    button.addEventListener("click", () => {
+      $$(".tab-button").forEach((item) => item.classList.remove("active"));
+      $$(".page").forEach((page) => page.classList.remove("active"));
+      button.classList.add("active");
+      $(`#${button.dataset.page}`).classList.add("active");
+    });
+  });
+}
 
-  if (!data.country || !data.product || !data.priceInfo || !data.moq || !data.advantagesText) {
-    setStatus("请先填写所有必填信息。");
+function initCompanyForm() {
+  $("#companyName").value = company.name;
+  $("#companyWebsite").value = company.website;
+  $("#companyAlibaba").value = company.alibaba;
+  $("#companyWhatsapp").value = company.whatsapp;
+  $("#companyEmail").value = company.email;
+
+  $("#companyForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    company = {
+      name: cleanText($("#companyName").value),
+      website: cleanText($("#companyWebsite").value),
+      alibaba: cleanText($("#companyAlibaba").value),
+      whatsapp: cleanText($("#companyWhatsapp").value),
+      email: cleanText($("#companyEmail").value)
+    };
+    saveCompany();
+    renderAssetSummary();
+    setStatus("公司资料已保存，会自动引用到开发信。");
+  });
+}
+
+function renderAssetSummary() {
+  const counts = [
+    ["产品图片", ASSETS.products.length + ASSETS.productPhotos.length],
+    ["工厂图片", ASSETS.factory.length],
+    ["视频素材", ASSETS.productionVideos.length + ASSETS.productVideos.length],
+    ["认证/目录", 2]
+  ];
+  $("#assetSummary").innerHTML = counts
+    .map(([label, count]) => `<div class="summary-tile"><strong>${count}</strong><span>${label}</span></div>`)
+    .join("");
+}
+
+function renderAssetSections() {
+  const sections = [
+    ["产品目录", [ASSETS.catalog]],
+    ["产品图片", [...ASSETS.products, ...ASSETS.productPhotos]],
+    ["工厂图片", ASSETS.factory],
+    ["生产过程视频", ASSETS.productionVideos],
+    ["产品视频", ASSETS.productVideos],
+    ["认证文件", ASSETS.certificates]
+  ];
+
+  $("#assetSections").innerHTML = "";
+  sections.forEach(([title, assets]) => {
+    const section = createElement("section", "asset-section");
+    section.appendChild(createElement("h3", "", title));
+    const grid = createElement("div", "asset-grid");
+    assets.forEach((asset) => grid.appendChild(createAssetCard(asset)));
+    section.appendChild(grid);
+    $("#assetSections").appendChild(section);
+  });
+}
+
+function createAssetCard(asset) {
+  const card = createElement("article", "asset-card");
+  const preview = createElement("button", "asset-preview");
+  preview.type = "button";
+  preview.addEventListener("click", () => openPreview(asset));
+
+  if (asset.type === "image") {
+    const image = document.createElement("img");
+    image.src = asset.path;
+    image.alt = asset.label;
+    preview.appendChild(image);
+  } else if (asset.type === "video") {
+    const video = document.createElement("video");
+    video.src = asset.path;
+    video.muted = true;
+    video.preload = "metadata";
+    preview.appendChild(video);
+  } else {
+    preview.appendChild(createElement("span", "file-icon", "PDF"));
+  }
+
+  const actions = createElement("div", "asset-actions");
+  const viewButton = createElement("button", "copy-small", "预览");
+  viewButton.type = "button";
+  viewButton.addEventListener("click", () => openPreview(asset));
+
+  const openLink = document.createElement("a");
+  openLink.href = asset.path;
+  openLink.target = "_blank";
+  openLink.rel = "noopener";
+  openLink.textContent = "打开";
+
+  actions.appendChild(viewButton);
+  actions.appendChild(openLink);
+  card.appendChild(preview);
+  card.appendChild(createElement("strong", "", asset.label));
+  card.appendChild(actions);
+  return card;
+}
+
+function openPreview(asset) {
+  $("#previewType").textContent = asset.type.toUpperCase();
+  $("#previewTitle").textContent = asset.label;
+  const body = $("#previewBody");
+  body.innerHTML = "";
+
+  if (asset.type === "image") {
+    const image = document.createElement("img");
+    image.src = asset.path;
+    image.alt = asset.label;
+    body.appendChild(image);
+  } else if (asset.type === "video") {
+    const video = document.createElement("video");
+    video.src = asset.path;
+    video.controls = true;
+    video.playsInline = true;
+    body.appendChild(video);
+  } else {
+    const iframe = document.createElement("iframe");
+    iframe.src = asset.path;
+    iframe.title = asset.label;
+    body.appendChild(iframe);
+  }
+
+  $("#previewModal").classList.add("open");
+  $("#previewModal").setAttribute("aria-hidden", "false");
+}
+
+function closePreview() {
+  $("#previewModal").classList.remove("open");
+  $("#previewModal").setAttribute("aria-hidden", "true");
+  $("#previewBody").innerHTML = "";
+}
+
+function initPreview() {
+  $("#closePreviewButton").addEventListener("click", closePreview);
+  $("#previewModal").addEventListener("click", (event) => {
+    if (event.target.id === "previewModal") closePreview();
+  });
+}
+
+function generateCustomerDevelopment(country, product, positioningKey) {
+  const pos = POSITIONING[positioningKey];
+  const data = { country, product };
+  const profiles = CUSTOMER_TYPES.map((type) => {
+    const google = type.google.map((item) => fill(item, data));
+    const linkedin = type.linkedin.map((item) => fill(item, data));
+    const b2b = type.b2b.map((item) => fill(item, data));
+    return { ...type, google, linkedin, b2b };
+  });
+
+  latestDevelopmentText = profiles
+    .map(
+      (profile, index) => `${index + 1}. ${profile.name}
+Needs: ${profile.needs.join("; ")}
+Pain Points: ${profile.pains.join("; ")}
+Development Angle: ${profile.angle}
+Google Keywords: ${profile.google.join(" | ")}
+LinkedIn Keywords: ${profile.linkedin.join(" | ")}
+B2B Keywords: ${profile.b2b.join(" | ")}`
+    )
+    .join("\n\n");
+
+  const profileHtml = profiles
+    .map(
+      (profile, index) => `<article class="profile-card">
+        <h3>${index + 1}. ${escapeHtml(profile.name)}</h3>
+        <p>定位建议：针对 ${escapeHtml(country)} 的 ${escapeHtml(pos.buyer)}，强调 ${escapeHtml(pos.focus)}。</p>
+        <ul>
+          <li><strong>客户需求：</strong>${escapeHtml(profile.needs.join("；"))}</li>
+          <li><strong>常见痛点：</strong>${escapeHtml(profile.pains.join("；"))}</li>
+          <li><strong>开发角度：</strong>${escapeHtml(profile.angle)}</li>
+        </ul>
+      </article>`
+    )
+    .join("");
+
+  const keywordHtml = [
+    ["Google搜索关键词", profiles.flatMap((profile) => profile.google)],
+    ["LinkedIn搜索关键词", profiles.flatMap((profile) => profile.linkedin)],
+    ["B2B搜索关键词", profiles.flatMap((profile) => profile.b2b)]
+  ]
+    .map(
+      ([title, items]) => `<article class="keyword-card">
+        <h3>${escapeHtml(title)}</h3>
+        <ul>${items.slice(0, 12).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+      </article>`
+    )
+    .join("");
+
+  $("#developmentOutput").innerHTML = `<div class="profile-grid">${profileHtml}</div><div class="keyword-grid">${keywordHtml}</div>`;
+  $("#copyDevelopmentButton").disabled = false;
+}
+
+function initDevelopment() {
+  $("#developmentForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const country = cleanText($("#devCountry").value);
+    const product = cleanText($("#devProduct").value);
+    const positioning = $("#devPositioning").value;
+    if (!country || !product) return;
+    generateCustomerDevelopment(country, product, positioning);
+    setStatus("客户画像和搜索关键词已生成。");
+  });
+
+  $("#copyDevelopmentButton").addEventListener("click", async () => {
+    const copied = await copyText(latestDevelopmentText);
+    setStatus(copied ? "开发方案已复制。" : "复制失败，请手动选择内容。");
+  });
+}
+
+function populateStatusOptions() {
+  const leadStatus = $("#leadStatus");
+  leadStatus.innerHTML = STATUS_OPTIONS.map((status) => `<option>${status}</option>`).join("");
+}
+
+function initLeadForm() {
+  populateStatusOptions();
+  $("#leadForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const lead = {
+      id: makeId(),
+      company: cleanText($("#leadCompany").value),
+      website: cleanText($("#leadWebsite").value),
+      email: cleanText($("#leadEmail").value),
+      country: cleanText($("#leadCountry").value),
+      type: $("#leadType").value,
+      status: $("#leadStatus").value
+    };
+
+    if (!lead.company || !lead.country) return;
+    leads.unshift(lead);
+    saveLeads();
+    renderLeads();
+    event.target.reset();
+    populateStatusOptions();
+    setStatus("客户已添加。");
+  });
+
+  $("#importCsvButton").addEventListener("click", () => {
+    const imported = parseCsvLeads($("#csvInput").value);
+    leads = [...imported, ...leads];
+    saveLeads();
+    renderLeads();
+    $("#csvInput").value = "";
+    setStatus(`已导入 ${imported.length} 个客户。`);
+  });
+
+  $("#exportLeadsButton").addEventListener("click", async () => {
+    const text = leadsToCsv(leads);
+    const copied = await copyText(text);
+    setStatus(copied ? "客户CSV已复制。" : "复制失败，请手动选择内容。");
+  });
+
+  $("#clearLeadsButton").addEventListener("click", () => {
+    if (!confirm("确定清空客户名单吗？")) return;
+    leads = [];
+    saveLeads();
+    renderLeads();
+    setStatus("客户名单已清空。");
+  });
+}
+
+function parseCsvLine(line) {
+  const result = [];
+  let value = "";
+  let quoted = false;
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+    if (char === '"') {
+      quoted = !quoted;
+    } else if (char === "," && !quoted) {
+      result.push(value.trim().replace(/^"|"$/g, ""));
+      value = "";
+    } else {
+      value += char;
+    }
+  }
+  result.push(value.trim().replace(/^"|"$/g, ""));
+  return result;
+}
+
+function parseCsvLeads(text) {
+  const lines = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (!lines.length) return [];
+
+  const first = lines[0].toLowerCase();
+  const rows = first.includes("company") && first.includes("country") ? lines.slice(1) : lines;
+
+  return rows
+    .map(parseCsvLine)
+    .filter((cols) => cols[0])
+    .map((cols) => ({
+      id: makeId(),
+      company: cleanText(cols[0]),
+      website: cleanText(cols[1]),
+      email: cleanText(cols[2]),
+      country: cleanText(cols[3]),
+      type: cleanText(cols[4]) || "Importer / Distributor",
+      status: STATUS_OPTIONS.includes(cleanText(cols[5])) ? cleanText(cols[5]) : "New Lead"
+    }));
+}
+
+function leadsToCsv(items) {
+  const escape = (value) => `"${String(value || "").replaceAll('"', '""')}"`;
+  return [
+    "Company,Website,Email,Country,Type,Status",
+    ...items.map((lead) =>
+      [lead.company, lead.website, lead.email, lead.country, lead.type, lead.status].map(escape).join(",")
+    )
+  ].join("\n");
+}
+
+function renderLeads() {
+  const body = $("#leadTableBody");
+  if (!leads.length) {
+    body.innerHTML = `<tr><td colspan="7">暂无客户，请手动添加或导入CSV。</td></tr>`;
     return;
   }
 
-  const signals = {
-    moqTier: getMoqTier(data.moq)
+  body.innerHTML = "";
+  leads.forEach((lead) => {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${escapeHtml(lead.company)}</td>
+      <td>${lead.website ? `<a href="${escapeHtml(normalizeUrl(lead.website))}" target="_blank" rel="noopener">Open</a>` : ""}</td>
+      <td>${escapeHtml(lead.email || "")}</td>
+      <td>${escapeHtml(lead.country)}</td>
+      <td>${escapeHtml(lead.type)}</td>
+      <td>
+        <select data-status-id="${lead.id}">
+          ${STATUS_OPTIONS.map((status) => `<option ${status === lead.status ? "selected" : ""}>${status}</option>`).join("")}
+        </select>
+      </td>
+      <td><button class="danger-button" type="button" data-delete-id="${lead.id}">删除</button></td>
+    `;
+    body.appendChild(row);
+  });
+
+  $$("[data-status-id]").forEach((select) => {
+    select.addEventListener("change", () => {
+      const lead = leads.find((item) => item.id === select.dataset.statusId);
+      if (lead) lead.status = select.value;
+      saveLeads();
+    });
+  });
+
+  $$("[data-delete-id]").forEach((button) => {
+    button.addEventListener("click", () => {
+      leads = leads.filter((item) => item.id !== button.dataset.deleteId);
+      saveLeads();
+      renderLeads();
+      setStatus("客户已删除。");
+    });
+  });
+}
+
+function buildBatchEmail(lead, data, index) {
+  const pos = POSITIONING[data.positioning];
+  const type = CUSTOMER_TYPES.find((item) => lead.type.toLowerCase().includes(item.name.split(" ")[0].toLowerCase())) || CUSTOMER_TYPES[index % CUSTOMER_TYPES.length];
+  const subjectOptions = [
+    `${sentenceCase(data.product)} supply option for ${lead.country || data.country || "your market"}`,
+    `A practical ${data.product} offer for ${lead.type}`,
+    `${sentenceCase(data.product)} catalog, factory photos and video`,
+    `Can we support your ${data.product} sourcing?`
+  ];
+  const openingOptions = [
+    `I came across ${lead.company} and thought your team may be interested in a reliable ${data.product} supply option.`,
+    `I am reaching out because ${lead.type.toLowerCase()} buyers often need clear product details before checking a new supplier.`,
+    `I wanted to share a short introduction from our factory, especially if ${data.product} is relevant to your current sourcing.`,
+    `Instead of sending only a price, I would like to share our catalog, product photos, factory photos and videos for easier review.`
+  ];
+  const pain = pick(type.pains, (index + 1) / 7);
+  const need = pick(type.needs, (index + 2) / 8);
+  const advantageList = data.advantages.length ? data.advantages : ["factory direct supply", "stable quality", "product catalog and photos", "video introduction"];
+  const sellingPoint = pick(advantageList, (index + 3) / 9);
+  const subject = pick(subjectOptions, (index + 1) / 6);
+
+  return {
+    subject,
+    body: `Subject: ${subject}
+
+Dear Purchasing Manager,
+
+${pick(openingOptions, (index + 4) / 10)}
+
+For ${lead.country || "your market"}, ${lead.type.toLowerCase()} buyers usually care about ${need}. One common issue is ${pain}. That is why I would position our ${data.product} as a ${pos.label} option focused on ${pos.focus}.
+
+Main point for your review: ${sellingPoint}.
+
+To make the first check easier, I am including our sales materials below instead of only sending plain text:
+${assetLinkBlock()}
+
+If the product category is relevant, I can also prepare a short quotation, MOQ, packing details and sample plan for ${lead.company}.
+
+Best regards,
+[Your Name]
+${company.name || "[Your Company]"}
+${contactLine()}`
   };
-  signals.moqSignal = getMoqSignal(signals.moqTier, data.moq);
+}
 
-  const selectedProfiles = selectProfiles(data, signals);
-  const results = selectedProfiles.map((profile, index) => buildProfileResult(profile, data, signals, index + 1));
+function initBatch() {
+  $("#batchForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!leads.length) {
+      $("#batchOutput").innerHTML = `<div class="empty-state">请先在“客户名单”里添加或导入客户。</div>`;
+      return;
+    }
 
-  renderResults(results, data, signals);
-  setStatus("已生成 5 类客户画像和专属开发话术。再次点击会调整表达。");
-});
+    const data = {
+      product: cleanText($("#batchProduct").value),
+      positioning: $("#batchPositioning").value,
+      advantages: cleanText($("#batchAdvantages").value)
+        .split(/[,，;；、\n]/)
+        .map(cleanText)
+        .filter(Boolean)
+    };
 
-copyAllButton.addEventListener("click", async () => {
-  const copied = await copyText(generatedText);
-  setStatus(copied ? "已复制全部客户画像和话术。" : "复制失败，请手动选择内容。");
-});
+    if (!data.product) return;
+
+    const emails = leads.map((lead, index) => ({ lead, ...buildBatchEmail(lead, data, index) }));
+    latestBatchText = emails.map((item) => `${item.lead.company}\n${item.body}`).join("\n\n------------------------------\n\n");
+
+    $("#batchOutput").innerHTML = `<div class="batch-list">${emails
+      .map(
+        (item, index) => `<article class="batch-card">
+          <div class="section-head">
+            <div>
+              <h3>${index + 1}. ${escapeHtml(item.lead.company)}</h3>
+              <p>${escapeHtml(item.lead.country)} / ${escapeHtml(item.lead.type)} / ${escapeHtml(item.lead.status)}</p>
+            </div>
+            <button class="copy-small" type="button" data-copy-batch="${index}">复制这封</button>
+          </div>
+          <textarea readonly>${escapeHtml(item.body)}</textarea>
+        </article>`
+      )
+      .join("")}</div>`;
+
+    $$("[data-copy-batch]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const copied = await copyText(emails[Number(button.dataset.copyBatch)].body);
+        setStatus(copied ? "单封开发信已复制。" : "复制失败，请手动选择内容。");
+      });
+    });
+
+    $("#copyBatchButton").disabled = false;
+    setStatus("批量开发信已生成。每封邮件的标题、开头、痛点和卖点均有差异。");
+  });
+
+  $("#copyBatchButton").addEventListener("click", async () => {
+    const copied = await copyText(latestBatchText);
+    setStatus(copied ? "全部批量开发信已复制。" : "复制失败，请手动选择内容。");
+  });
+}
+
+function init() {
+  initTabs();
+  initCompanyForm();
+  initPreview();
+  renderAssetSummary();
+  renderAssetSections();
+  initDevelopment();
+  initLeadForm();
+  renderLeads();
+  initBatch();
+}
+
+init();
