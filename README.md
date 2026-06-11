@@ -1,0 +1,1 @@
+# trade-email-generator
