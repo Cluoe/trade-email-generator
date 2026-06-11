@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>外贸客户开发助手</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="workspace">
+        <aside class="input-panel" aria-labelledby="pageTitle">
+          <div class="brand-row">
+            <span class="brand-mark" aria-hidden="true"></span>
+            <span>Global Outreach Assistant</span>
+          </div>
+
+          <header class="page-header">
+            <p class="eyebrow">外贸业务员专用</p>
+            <h1 id="pageTitle">外贸客户开发助手</h1>
+          </header>
+
+          <form id="leadForm" class="lead-form">
+            <div class="field-grid">
+              <label>
+                <span>目标国家</span>
+                <input id="country" type="text" placeholder="例如：United States" required />
+              </label>
+
+              <label>
+                <span>产品名称</span>
+                <input id="product" type="text" placeholder="例如：solar garden lights" required />
+              </label>
+            </div>
+
+            <label>
+              <span>客户类型</span>
+              <select id="customerType" required>
+                <option value="wholesaler">批发商</option>
+                <option value="importer">进口商</option>
+                <option value="retailer">零售商</option>
+                <option value="brand">品牌商</option>
+                <option value="ecommerce">电商卖家</option>
+              </select>
+            </label>
+
+            <label>
+              <span>客户公司名称 <small>可选</small></span>
+              <input id="company" type="text" placeholder="例如：Bright Home Trading" />
+            </label>
+
+            <label>
+              <span>客户痛点 <small>可选</small></span>
+              <textarea id="painPoint" rows="3" placeholder="例如：交期不稳定、包装不适合零售、利润低、想找新供应商"></textarea>
+            </label>
+
+            <label>
+              <span>公司优势 <small>可选</small></span>
+              <textarea id="advantages" rows="3" placeholder="例如：15年工厂经验、支持OEM、交期快、可做低MOQ"></textarea>
+            </label>
+
+            <div class="field-grid">
+              <label>
+                <span>邮件风格</span>
+                <select id="tone" required>
+                  <option value="formal">正式</option>
+                  <option value="concise">简洁</option>
+                  <option value="friendly">友好</option>
+                  <option value="sales">强销售</option>
+                  <option value="expo">展会邀约</option>
+                </select>
+              </label>
+
+              <label>
+                <span>是否首次联系</span>
+                <select id="firstContact" required>
+                  <option value="yes">是</option>
+                  <option value="no">否</option>
+                </select>
+              </label>
+            </div>
+
+            <button class="generate-button" type="submit">
+              <span class="plus-icon" aria-hidden="true"></span>
+              生成开发内容
+            </button>
+          </form>
+        </aside>
+
+        <section class="output-panel" aria-label="生成结果">
+          <div class="output-header">
+            <div>
+              <p class="eyebrow">Generated Content</p>
+              <h2>英文开发内容</h2>
+            </div>
+            <p id="statusMessage" class="status-message" role="status"></p>
+          </div>
+
+          <div class="result-grid">
+            <article class="result-card subject-card">
+              <div class="card-head">
+                <h3>英文邮件标题 Subject</h3>
+                <button class="copy-button" type="button" data-copy="subjectOutput" disabled>
+                  <span class="copy-icon" aria-hidden="true"></span>
+                  复制
+                </button>
+              </div>
+              <input id="subjectOutput" readonly placeholder="点击生成后显示 Subject" />
+            </article>
+
+            <article class="result-card">
+              <div class="card-head">
+                <h3>英文开发信正文</h3>
+                <button class="copy-button" type="button" data-copy="emailOutput" disabled>
+                  <span class="copy-icon" aria-hidden="true"></span>
+                  复制
+                </button>
+              </div>
+              <textarea id="emailOutput" readonly placeholder="点击生成后显示开发信正文"></textarea>
+            </article>
+
+            <article class="result-card">
+              <div class="card-head">
+                <h3>LinkedIn开发消息</h3>
+                <button class="copy-button" type="button" data-copy="linkedinOutput" disabled>
+                  <span class="copy-icon" aria-hidden="true"></span>
+                  复制
+                </button>
+              </div>
+              <textarea id="linkedinOutput" readonly placeholder="点击生成后显示 LinkedIn 消息"></textarea>
+            </article>
+
+            <article class="result-card">
+              <div class="card-head">
+                <h3>WhatsApp首条消息</h3>
+                <button class="copy-button" type="button" data-copy="whatsappOutput" disabled>
+                  <span class="copy-icon" aria-hidden="true"></span>
+                  复制
+                </button>
+              </div>
+              <textarea id="whatsappOutput" readonly placeholder="点击生成后显示 WhatsApp 消息"></textarea>
+            </article>
+
+            <article class="result-card follow-card">
+              <div class="card-head">
+                <h3>Follow-up跟进邮件</h3>
+                <button class="copy-button" type="button" data-copy="followupOutput" disabled>
+                  <span class="copy-icon" aria-hidden="true"></span>
+                  复制
+                </button>
+              </div>
+              <textarea id="followupOutput" readonly placeholder="点击生成后显示跟进邮件"></textarea>
+            </article>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>
