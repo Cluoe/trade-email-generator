@@ -19,7 +19,7 @@
         <nav class="tabs" aria-label="功能导航">
           <button class="tab-button active" type="button" data-page="assetsPage">Company Assets</button>
           <button class="tab-button" type="button" data-page="finderPage">潜在客户发现</button>
-          <button class="tab-button" type="button" data-page="poolPage">Customer Pool</button>
+          <button class="tab-button" type="button" data-page="poolPage">客户名单/客户池</button>
           <button class="tab-button" type="button" data-page="batchPage">批量开发信</button>
           <button class="tab-button" type="button" data-page="previewPage">开发信预览</button>
           <button class="tab-button" type="button" data-page="integrationsPage">未来接口</button>
@@ -111,7 +111,10 @@
             <p class="eyebrow">Lead Finder</p>
             <h2>潜在客户发现模块</h2>
           </div>
-          <button id="addSelectedProspectsButton" class="secondary-button" type="button" disabled>加入客户库</button>
+          <div class="action-row">
+            <button id="searchRealLeadsButton" class="secondary-button" type="button" disabled>搜索真实客户</button>
+            <button id="addSelectedProspectsButton" class="secondary-button" type="button" disabled>加入客户库</button>
+          </div>
         </div>
 
         <div class="finder-layout">
@@ -152,13 +155,35 @@
           </div>
           <div id="prospectResults" class="prospect-grid empty-state">点击生成后显示20个潜在客户卡片。</div>
         </section>
+
+        <section class="panel prospect-section">
+          <div class="section-head compact">
+            <div>
+              <p class="eyebrow">Real Lead Search</p>
+              <h2>真实客户搜索结果</h2>
+            </div>
+            <div class="action-row">
+              <button id="openSearchSetButton" class="secondary-button" type="button" disabled>打开搜索入口</button>
+              <button id="extractRealLeadsButton" class="secondary-button" type="button">提取真实客户</button>
+              <button id="addSelectedRealLeadsButton" class="secondary-button" type="button" disabled>加入客户池</button>
+            </div>
+          </div>
+          <div class="real-search-layout">
+            <div id="realSearchTasks" class="keyword-grid empty-state">点击“搜索真实客户”后，这里会显示 Google / LinkedIn / B2B 搜索入口。</div>
+            <label class="real-search-input">
+              <span>粘贴搜索结果</span>
+              <textarea id="realSearchInput" placeholder="每行粘贴一个真实客户结果，例如：&#10;ABC Pet Supplies - https://www.abcpet.com&#10;XYZ Imports | https://www.xyzimports.com | importer"></textarea>
+            </label>
+          </div>
+          <div id="realLeadResults" class="prospect-grid empty-state">提取后显示真实客户卡片。</div>
+        </section>
       </section>
 
       <section id="poolPage" class="page">
         <div class="section-head">
           <div>
             <p class="eyebrow">Customer Pool</p>
-            <h2>客户池</h2>
+            <h2>客户名单 / 客户池</h2>
           </div>
           <div class="action-row">
             <button id="exportPoolButton" class="secondary-button" type="button">导出CSV</button>

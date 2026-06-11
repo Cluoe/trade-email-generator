@@ -439,6 +439,17 @@ button:disabled {
   gap: 14px;
 }
 
+.real-search-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.real-search-input textarea {
+  min-height: 240px;
+}
+
 .empty-state {
   display: grid;
   min-height: 210px;
@@ -784,7 +795,8 @@ td textarea {
   .field-grid,
   .profile-detail,
   .keyword-grid,
-  .prospect-grid {
+  .prospect-grid,
+  .real-search-layout {
     grid-template-columns: 1fr;
   }
 

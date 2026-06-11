@@ -185,6 +185,9 @@ const POSITION_TYPE_FIT = {
 let company = loadCompany();
 let customerPool = loadPool();
 let currentProspects = [];
+let currentRealProspects = [];
+let latestFinderData = null;
+let latestSearchTasks = [];
 let latestBatchText = "";
 
 const $ = (selector) => document.querySelector(selector);
@@ -563,9 +566,14 @@ function initFinder() {
   });
 
   $("#addSelectedProspectsButton").addEventListener("click", addSelectedProspectsToPool);
+  $("#searchRealLeadsButton").addEventListener("click", renderRealSearchWorkspace);
+  $("#openSearchSetButton").addEventListener("click", openSearchSet);
+  $("#extractRealLeadsButton").addEventListener("click", extractRealLeadsFromInput);
+  $("#addSelectedRealLeadsButton").addEventListener("click", addSelectedRealLeadsToPool);
 }
 
 function renderLeadFinder(data) {
+  latestFinderData = data;
   const position = POSITIONING[data.positioning];
   const rules = CUSTOMER_TYPE_ORDER.map((key) => ({ key, ...CUSTOMER_RULES[key] }));
   renderProfileOutput(rules, position, data);
@@ -573,6 +581,7 @@ function renderLeadFinder(data) {
   currentProspects = generateProspects(rules, position, data);
   renderProspects();
   $("#addSelectedProspectsButton").disabled = false;
+  $("#searchRealLeadsButton").disabled = false;
 }
 
 function renderProfileOutput(rules, position, data) {
@@ -605,33 +614,36 @@ function renderProfileOutput(rules, position, data) {
   </div>`;
 }
 
-function renderKeywords(rules, data) {
+function buildKeywordGroups(rules, data) {
   const collect = (field) =>
     rules
       .flatMap((rule) => rule[field].map((template) => fill(template, data)))
       .filter((keyword, index, list) => list.indexOf(keyword) === index)
       .slice(0, 10);
 
-  const groups = [
-    ["Google", collect("google"), (keyword) => `https://www.google.com/search?q=${encodeURIComponent(keyword)}`],
-    ["LinkedIn", collect("linkedin"), (keyword) => `https://www.linkedin.com/search/results/companies/?keywords=${encodeURIComponent(keyword)}`],
-    ["ImportYeti", collect("importyeti"), (keyword) => `https://www.importyeti.com/search?q=${encodeURIComponent(keyword)}`],
-    ["B2B平台", collect("b2b"), (keyword) => `https://www.alibaba.com/trade/search?SearchText=${encodeURIComponent(keyword)}`]
+  return [
+    { title: "Google", keywords: collect("google"), buildUrl: (keyword) => `https://www.google.com/search?q=${encodeURIComponent(keyword)}` },
+    { title: "LinkedIn", keywords: collect("linkedin"), buildUrl: (keyword) => `https://www.linkedin.com/search/results/companies/?keywords=${encodeURIComponent(keyword)}` },
+    { title: "ImportYeti", keywords: collect("importyeti"), buildUrl: (keyword) => `https://www.importyeti.com/search?q=${encodeURIComponent(keyword)}` },
+    { title: "B2B平台", keywords: collect("b2b"), buildUrl: (keyword) => `https://www.alibaba.com/trade/search?SearchText=${encodeURIComponent(keyword)}` }
   ];
+}
+
+function renderKeywords(rules, data) {
+  const groups = buildKeywordGroups(rules, data);
 
   $("#keywordOutput").classList.remove("empty-state");
   $("#keywordOutput").innerHTML = `<div class="keyword-grid">${groups
-    .map(([title, templates, urlBuilder]) => {
-      const rows = templates
-        .map((template) => {
-          const keyword = fill(template, data);
+    .map((group) => {
+      const rows = group.keywords
+        .map((keyword) => {
           return `<div class="keyword-row">
             <span>${escapeHtml(keyword)}</span>
-            <a class="search-link" href="${escapeHtml(urlBuilder(keyword))}" target="_blank" rel="noopener">打开搜索</a>
+            <a class="search-link" href="${escapeHtml(group.buildUrl(keyword))}" target="_blank" rel="noopener">打开搜索</a>
           </div>`;
         })
         .join("");
-      return `<article class="keyword-card"><h3>${escapeHtml(title)}</h3>${rows}</article>`;
+      return `<article class="keyword-card"><h3>${escapeHtml(group.title)}</h3>${rows}</article>`;
     })
     .join("")}</div>`;
 }
@@ -748,6 +760,222 @@ function addProspectsToPool(selectedIds, shouldNavigate = false) {
     switchPage("poolPage");
   }
   setStatus(selected.length ? `已加入客户池 ${selected.length} 个客户。` : "客户已在客户池中，无需重复添加。");
+}
+
+function renderRealSearchWorkspace() {
+  if (!latestFinderData) {
+    setStatus("请先输入国家、产品和定位，并生成目标客户列表。");
+    return;
+  }
+
+  const rules = CUSTOMER_TYPE_ORDER.map((key) => ({ key, ...CUSTOMER_RULES[key] }));
+  const groups = buildKeywordGroups(rules, latestFinderData);
+  latestSearchTasks = groups.flatMap((group) =>
+    group.keywords.slice(0, 5).map((keyword) => ({
+      title: group.title,
+      keyword,
+      url: group.buildUrl(keyword)
+    }))
+  );
+
+  $("#realSearchTasks").classList.remove("empty-state");
+  $("#realSearchTasks").innerHTML = `${groups
+    .map((group) => {
+      const rows = group.keywords
+        .slice(0, 5)
+        .map(
+          (keyword) => `<div class="keyword-row">
+            <span>${escapeHtml(keyword)}</span>
+            <a class="search-link" href="${escapeHtml(group.buildUrl(keyword))}" target="_blank" rel="noopener">打开搜索</a>
+          </div>`
+        )
+        .join("");
+      return `<article class="keyword-card"><h3>${escapeHtml(group.title)}</h3>${rows}</article>`;
+    })
+    .join("")}`;
+
+  $("#openSearchSetButton").disabled = false;
+  setStatus("真实客户搜索入口已生成。打开搜索后，把真实公司结果粘贴到右侧即可提取。");
+}
+
+function openSearchSet() {
+  if (!latestSearchTasks.length) {
+    renderRealSearchWorkspace();
+  }
+
+  latestSearchTasks.slice(0, 6).forEach((task) => window.open(task.url, "_blank", "noopener"));
+  setStatus("已打开部分搜索入口。如浏览器拦截弹窗，请逐个点击“打开搜索”。");
+}
+
+function extractRealLeadsFromInput() {
+  if (!latestFinderData) {
+    setStatus("请先生成目标客户列表。");
+    return;
+  }
+
+  const text = cleanTextPreserveLines($("#realSearchInput").value);
+  if (!text) {
+    setStatus("请先粘贴真实搜索结果，至少包含公司名和官网链接。");
+    return;
+  }
+
+  currentRealProspects = parseRealLeadText(text, latestFinderData);
+  renderRealProspects();
+  setStatus(currentRealProspects.length ? `已提取 ${currentRealProspects.length} 个真实客户。` : "没有提取到官网链接，请检查粘贴内容。");
+}
+
+function cleanTextPreserveLines(value) {
+  return String(value || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join("\n");
+}
+
+function parseRealLeadText(text, data) {
+  const urlRegex = /(https?:\/\/[^\s,，;；)）]+|(?:www\.)?[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\/[^\s,，;；)）]*)?)/g;
+  const seen = new Set();
+  const leads = [];
+
+  text.split(/\r?\n/).forEach((line, index) => {
+    const urls = line.match(urlRegex) || [];
+    if (!urls.length) return;
+
+    const rawUrl = urls[0].replace(/[.!?。]+$/, "");
+    const website = normalizeUrl(rawUrl);
+    const domainKey = domainFromUrl(website);
+    if (!domainKey || seen.has(domainKey)) return;
+    seen.add(domainKey);
+
+    const typeKey = inferTypeKey(line, index);
+    const rule = CUSTOMER_RULES[typeKey];
+    const score = Math.min(99, calculateLeadScore(typeKey, data.positioning, index) + 5);
+    const companyName = extractCompanyName(line, rawUrl) || companyNameFromDomain(domainKey);
+
+    leads.push({
+      id: makeId(),
+      company: companyName,
+      website,
+      country: data.country,
+      type: rule.label,
+      typeKey,
+      matchScore: score,
+      scoreReason: `Score ${score}: real search result with website found, matched to ${rule.label}, and ready for manual verification.`,
+      possibleNeeds: [rule.needs[index % rule.needs.length], rule.needs[(index + 1) % rule.needs.length]],
+      possiblePains: [rule.pains[index % rule.pains.length], rule.pains[(index + 2) % rule.pains.length]],
+      angle: `${rule.angle} Use verified website context before outreach.`,
+      notes: `Real search lead from pasted result. ${line}`
+    });
+  });
+
+  return leads.slice(0, 30);
+}
+
+function domainFromUrl(url) {
+  try {
+    return new URL(normalizeUrl(url)).hostname.replace(/^www\./, "").toLowerCase();
+  } catch (error) {
+    return "";
+  }
+}
+
+function companyNameFromDomain(domain) {
+  const clean = domain.split(".")[0].replace(/[-_]+/g, " ");
+  return clean.replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function extractCompanyName(line, rawUrl) {
+  const withoutUrl = line
+    .replace(rawUrl, "")
+    .replace(/https?:\/\/[^\s]+/g, "")
+    .replace(/(?:www\.)?[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\/[^\s]*)?/g, "")
+    .replace(/[-|—–:,，。]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!withoutUrl || withoutUrl.length < 2) return "";
+  return withoutUrl.slice(0, 80);
+}
+
+function inferTypeKey(line, index) {
+  const lower = line.toLowerCase();
+  if (lower.includes("brand") || lower.includes("private label") || lower.includes("oem")) return "brand";
+  if (lower.includes("amazon") || lower.includes("ecommerce") || lower.includes("e-commerce") || lower.includes("online")) return "ecommerce";
+  if (lower.includes("retail") || lower.includes("store") || lower.includes("shop") || lower.includes("chain")) return "retail";
+  if (lower.includes("distributor") || lower.includes("wholesale") || lower.includes("wholesaler")) return "distributor";
+  if (lower.includes("import")) return "importer";
+  return CUSTOMER_TYPE_ORDER[index % CUSTOMER_TYPE_ORDER.length];
+}
+
+function renderRealProspects() {
+  if (!currentRealProspects.length) {
+    $("#realLeadResults").classList.add("empty-state");
+    $("#realLeadResults").innerHTML = "提取后显示真实客户卡片。";
+    $("#addSelectedRealLeadsButton").disabled = true;
+    return;
+  }
+
+  $("#realLeadResults").classList.remove("empty-state");
+  $("#realLeadResults").innerHTML = currentRealProspects
+    .map(
+      (lead) => `<article class="prospect-card">
+        <label>
+          <input type="checkbox" class="real-prospect-check" value="${escapeHtml(lead.id)}" />
+          <span>${escapeHtml(lead.company)}</span>
+        </label>
+        <span class="score">Match ${lead.matchScore}</span>
+        <div class="meta-list">
+          <span><strong>Website:</strong> <a href="${escapeHtml(lead.website)}" target="_blank" rel="noopener">${escapeHtml(domainFromUrl(lead.website))}</a></span>
+          <span><strong>Country:</strong> ${escapeHtml(lead.country)}</span>
+          <span><strong>Customer Type:</strong> ${escapeHtml(lead.type)}</span>
+          <span><strong>Needs:</strong> ${escapeHtml(lead.possibleNeeds.join("; "))}</span>
+          <span><strong>Pain Points:</strong> ${escapeHtml(lead.possiblePains.join("; "))}</span>
+        </div>
+        <div class="prospect-actions">
+          <button class="secondary-button" type="button" data-add-real-prospect="${escapeHtml(lead.id)}">☑ 加入客户池</button>
+        </div>
+      </article>`
+    )
+    .join("");
+
+  $$("[data-add-real-prospect]").forEach((button) => {
+    button.addEventListener("click", () => addRealProspectsToPool([button.dataset.addRealProspect], true));
+  });
+  $("#addSelectedRealLeadsButton").disabled = false;
+}
+
+function addSelectedRealLeadsToPool() {
+  const selectedIds = $$(".real-prospect-check:checked").map((input) => input.value);
+  if (!selectedIds.length) {
+    setStatus("请先勾选真实客户。");
+    return;
+  }
+  addRealProspectsToPool(selectedIds, true);
+}
+
+function addRealProspectsToPool(selectedIds, shouldNavigate = false) {
+  const existingKeys = new Set(customerPool.map((lead) => `${lead.company}-${lead.country}`.toLowerCase()));
+  const selected = currentRealProspects
+    .filter((lead) => selectedIds.includes(lead.id))
+    .filter((lead) => !existingKeys.has(`${lead.company}-${lead.country}`.toLowerCase()))
+    .map((lead) => ({
+      id: makeId(),
+      company: lead.company,
+      website: lead.website,
+      country: lead.country,
+      type: lead.type,
+      matchScore: lead.matchScore,
+      status: "New Lead",
+      notes: `Needs: ${lead.possibleNeeds.join("; ")} | Pain: ${lead.possiblePains.join("; ")} | Angle: ${lead.angle} | ${lead.scoreReason}`
+    }));
+
+  customerPool = [...selected, ...customerPool];
+  savePool();
+  renderCustomerPool();
+  if (shouldNavigate) {
+    switchPage("poolPage");
+  }
+  setStatus(selected.length ? `真实客户已加入客户池 ${selected.length} 个。` : "客户已在客户池中，无需重复添加。");
 }
 
 function initCustomerPool() {
