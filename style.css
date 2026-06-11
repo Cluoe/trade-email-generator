@@ -408,7 +408,7 @@ button:disabled {
 
 .asset-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
   gap: 7px;
 }
 
@@ -432,6 +432,13 @@ button:disabled {
   color: var(--muted);
   background: #ffffff;
   border: 1px solid var(--line);
+}
+
+.inline-search-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 6px;
 }
 
 .finder-results {
@@ -588,6 +595,19 @@ td input[type="checkbox"] {
   overflow: hidden;
 }
 
+.pool-toolbar {
+  display: grid;
+  grid-template-columns: auto minmax(180px, 1fr) repeat(3, minmax(150px, 180px)) auto;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.pool-count {
+  white-space: nowrap;
+  color: var(--accent-dark);
+}
+
 .table-actions {
   justify-content: space-between;
   margin-bottom: 10px;
@@ -653,7 +673,7 @@ td textarea {
 
 .integration-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
 }
 
@@ -778,6 +798,10 @@ td textarea {
   .tabs {
     justify-content: flex-start;
   }
+
+  .pool-toolbar {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 @media (max-width: 820px) {
@@ -796,6 +820,7 @@ td textarea {
   .profile-detail,
   .keyword-grid,
   .prospect-grid,
+  .pool-toolbar,
   .real-search-layout {
     grid-template-columns: 1fr;
   }

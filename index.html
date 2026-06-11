@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI外贸客户开发与销售助手 V2.0</title>
+    <title>AI外贸客户开发与销售助手 V1 Final</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
@@ -12,7 +12,7 @@
         <div class="brand">
           <img id="brandLogo" src="assets/company/logo.png" alt="Company Logo" />
           <div>
-            <p class="eyebrow">AI Sales Assistant V2.0</p>
+            <p class="eyebrow">AI Sales Assistant V1 Final</p>
             <h1>AI外贸客户开发与销售助手</h1>
           </div>
         </div>
@@ -214,7 +214,9 @@
                 <select id="manualType">
                   <option>Importer</option>
                   <option>Distributor</option>
+                  <option>Wholesaler</option>
                   <option>Brand Owner</option>
+                  <option>Private Label</option>
                   <option>E-commerce Seller</option>
                   <option>Retail Chain</option>
                 </select>
@@ -246,6 +248,20 @@
         </div>
 
         <div class="panel table-panel">
+          <div class="pool-toolbar">
+            <strong id="poolCount" class="pool-count">客户池：0个客户</strong>
+            <input id="poolSearchInput" type="search" placeholder="按公司搜索" />
+            <select id="poolCountryFilter">
+              <option value="">全部国家</option>
+            </select>
+            <select id="poolTypeFilter">
+              <option value="">全部客户类型</option>
+            </select>
+            <select id="poolStatusFilter">
+              <option value="">全部状态</option>
+            </select>
+            <button id="showAllPoolButton" class="secondary-button" type="button">显示全部客户</button>
+          </div>
           <div class="table-actions">
             <label class="inline-check">
               <input id="selectAllPool" type="checkbox" />
@@ -280,7 +296,11 @@
             <p class="eyebrow">Batch Outreach</p>
             <h2>批量开发信模块</h2>
           </div>
-          <button id="copyAllEmailsButton" class="secondary-button" type="button" disabled>复制全部邮件</button>
+          <div class="action-row">
+            <button id="copyAllEmailsButton" class="secondary-button" type="button" disabled>复制全部邮件</button>
+            <button id="exportEmailsTxtButton" class="secondary-button" type="button" disabled>导出TXT</button>
+            <button id="exportEmailsCsvButton" class="secondary-button" type="button" disabled>导出CSV</button>
+          </div>
         </div>
 
         <div class="batch-layout">
@@ -338,18 +358,23 @@
         <div class="integration-grid">
           <article class="integration-card">
             <h3>Gmail</h3>
-            <p>预留 OAuth 登录、草稿创建、发送状态回写接口。</p>
-            <span>Reserved</span>
+            <p>Coming Soon</p>
+            <span>Coming Soon</span>
           </article>
           <article class="integration-card">
             <h3>Outlook</h3>
-            <p>预留 Microsoft Graph 邮件草稿、联系人和往来记录同步接口。</p>
-            <span>Reserved</span>
+            <p>Coming Soon</p>
+            <span>Coming Soon</span>
           </article>
           <article class="integration-card">
             <h3>企业邮箱</h3>
-            <p>预留 SMTP / IMAP 或企业邮箱 API 接入位置。</p>
-            <span>Reserved</span>
+            <p>Coming Soon</p>
+            <span>Coming Soon</span>
+          </article>
+          <article class="integration-card">
+            <h3>WhatsApp</h3>
+            <p>Coming Soon</p>
+            <span>Coming Soon</span>
           </article>
         </div>
       </section>

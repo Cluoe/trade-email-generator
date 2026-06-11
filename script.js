@@ -3,8 +3,10 @@ const MAX_UPLOAD_BYTES = 1.2 * 1024 * 1024;
 
 const STORAGE_KEYS = {
   company: "ai_trade_company_assets_v2",
-  pool: "ai_trade_customer_pool_v2"
+  pool: "customerPool"
 };
+
+const LEGACY_POOL_KEYS = ["ai_trade_customer_pool_v2", "ai_trade_customer_pool_v1"];
 
 const STATUS_OPTIONS = [
   "New Lead",
@@ -55,7 +57,16 @@ const STATIC_ASSETS = {
     { label: "Product Photo 2", src: `${ASSET_BASE}product-photo-2.jpg` },
     { label: "Product Photo 3", src: `${ASSET_BASE}product-photo-3.jpg` },
     { label: "Product Photo 4", src: `${ASSET_BASE}product-photo-4.jpg` },
-    { label: "Product Photo 5", src: `${ASSET_BASE}product-photo-5.jpg` }
+    { label: "Product Photo 5", src: `${ASSET_BASE}product-photo-5.jpg` },
+    { label: "Product Photo 6", src: `${ASSET_BASE}product-photo-6.png` },
+    { label: "Product Photo 7", src: `${ASSET_BASE}product-photo-7.jpg` },
+    { label: "Product Photo 8", src: `${ASSET_BASE}product-photo-8.jpg` },
+    { label: "Product Photo 9", src: `${ASSET_BASE}product-photo-9.jpg` },
+    { label: "Product Photo 10", src: `${ASSET_BASE}product-photo-10.jpg` },
+    { label: "Product Detail 1", src: `${ASSET_BASE}product-detail-1.avif` },
+    { label: "Product Detail 2", src: `${ASSET_BASE}product-detail-2.avif` },
+    { label: "Product Detail 3", src: `${ASSET_BASE}product-detail-3.png` },
+    { label: "Product Detail 4", src: `${ASSET_BASE}product-detail-4.avif` }
   ].map((asset, index) => ({ id: `static-product-${index}`, category: "products", type: "image", ...asset })),
   factories: [
     { label: "Company Photo", src: `${ASSET_BASE}company-photo.avif` },
@@ -117,6 +128,7 @@ const CUSTOMER_RULES = {
   },
   distributor: {
     label: "Distributor",
+    aliases: ["Wholesaler"],
     needs: ["profit space", "long-term cooperation", "stable replenishment", "clear product range"],
     pains: ["margin is squeezed by freight and unstable cost", "supplier cannot support repeat supply", "product range is not clear enough", "slow response affects local sales"],
     angle: "Talk about margin, repeat supply, fast-selling SKUs, and how factory materials help them sell to local channels.",
@@ -129,6 +141,7 @@ const CUSTOMER_RULES = {
   },
   brand: {
     label: "Brand Owner",
+    aliases: ["Private Label"],
     needs: ["OEM support", "ODM development", "packaging customization", "stable quality"],
     pains: ["standard products look too similar", "custom packaging MOQ is unclear", "quality is not consistent enough for a brand", "factory communication is weak on details"],
     angle: "Lead with OEM/ODM, private label packaging, quality stability, and factory proof instead of a hard price pitch.",
@@ -189,6 +202,14 @@ let currentRealProspects = [];
 let latestFinderData = null;
 let latestSearchTasks = [];
 let latestBatchText = "";
+let latestBatchEmails = [];
+let emailRunSeed = Date.now();
+let poolFilters = {
+  search: "",
+  country: "",
+  type: "",
+  status: ""
+};
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
@@ -207,13 +228,27 @@ function saveCompany() {
 
 function loadPool() {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEYS.pool)) || [];
+    const storedPool = localStorage.getItem(STORAGE_KEYS.pool);
+    if (storedPool !== null) {
+      return normalizePool(JSON.parse(storedPool) || []);
+    }
+
+    for (const key of LEGACY_POOL_KEYS) {
+      const legacy = normalizePool(JSON.parse(localStorage.getItem(key)) || []);
+      if (legacy.length) {
+        localStorage.setItem(STORAGE_KEYS.pool, JSON.stringify(legacy));
+        return legacy;
+      }
+    }
+
+    return [];
   } catch (error) {
     return [];
   }
 }
 
 function savePool() {
+  customerPool = normalizePool(customerPool);
   localStorage.setItem(STORAGE_KEYS.pool, JSON.stringify(customerPool));
 }
 
@@ -231,10 +266,92 @@ function escapeHtml(value) {
 }
 
 function makeId() {
-  if (window.crypto && window.crypto.randomUUID) {
-    return window.crypto.randomUUID();
+  return `lead-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function clampScore(value) {
+  const score = Number(value);
+  if (!Number.isFinite(score)) return 70;
+  return Math.max(70, Math.min(100, Math.round(score)));
+}
+
+function normalizeStatus(value) {
+  const status = cleanText(value);
+  return STATUS_OPTIONS.includes(status) ? status : "New Lead";
+}
+
+function normalizeLead(lead = {}) {
+  const companyName = cleanText(lead.company || lead.Company);
+  const existingId = cleanText(lead.id || lead.ID);
+  return {
+    id: existingId && existingId !== companyName ? existingId : makeId(),
+    company: companyName,
+    website: cleanText(lead.website || lead.Website),
+    country: cleanText(lead.country || lead.Country),
+    type: cleanText(lead.type || lead.Type) || "Importer",
+    matchScore: clampScore(lead.matchScore || lead["Match Score"] || lead.score),
+    status: normalizeStatus(lead.status || lead.Status),
+    notes: cleanText(lead.notes || lead.Notes)
+  };
+}
+
+function normalizePool(pool) {
+  if (!Array.isArray(pool)) return [];
+  const usedIds = new Set();
+  return pool
+    .map(normalizeLead)
+    .filter((lead) => lead.company && lead.country)
+    .map((lead) => {
+      if (usedIds.has(lead.id)) lead.id = makeId();
+      usedIds.add(lead.id);
+      return lead;
+    });
+}
+
+function leadIdentityKey(lead) {
+  const normalized = normalizeLead(lead);
+  const domain = domainFromUrl(normalized.website);
+  const usableDomain = isSearchResultDomain(domain) ? "" : domain;
+  const companyKey = cleanText(normalized.company).toLowerCase();
+  const countryKey = cleanText(normalized.country).toLowerCase();
+  return `${usableDomain || companyKey}|${countryKey}`;
+}
+
+function isSearchResultDomain(domain) {
+  return [
+    "google.com",
+    "linkedin.com",
+    "importyeti.com",
+    "alibaba.com",
+    "made-in-china.com",
+    "globalsources.com"
+  ].some((searchDomain) => domain === searchDomain || domain.endsWith(`.${searchDomain}`));
+}
+
+function appendPoolLeads(leads) {
+  const existingKeys = new Set(customerPool.map(leadIdentityKey));
+  const added = [];
+  let duplicates = 0;
+
+  leads.map(normalizeLead).forEach((lead) => {
+    const key = leadIdentityKey(lead);
+    if (!lead.company || !lead.country) return;
+    if (existingKeys.has(key)) {
+      duplicates += 1;
+      return;
+    }
+    lead.id = makeId();
+    existingKeys.add(key);
+    added.push(lead);
+  });
+
+  if (added.length) {
+    customerPool = [...added, ...customerPool];
+    savePool();
   }
-  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+  renderCustomerPool();
+  return { added: added.length, duplicates };
 }
 
 function sentenceCase(text) {
@@ -287,6 +404,18 @@ async function copyText(text) {
     textarea.remove();
     return copied;
   }
+}
+
+function downloadText(filename, content, type = "text/plain;charset=utf-8") {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 function createElement(tag, className, text) {
@@ -425,8 +554,8 @@ function renderAssetSummary() {
   const tiles = [
     ["产品图片", getAssets("products").length],
     ["工厂图片", getAssets("factories").length],
-    ["视频素材", getAssets("productVideos").length + getAssets("productionVideos").length],
-    ["认证/目录", getAssets("certifications").length + getAssets("catalogs").length]
+    ["视频", getAssets("productVideos").length + getAssets("productionVideos").length],
+    ["认证", getAssets("certifications").length]
   ];
   $("#assetSummary").innerHTML = tiles
     .map(([label, count]) => `<div class="summary-tile"><strong>${count}</strong><span>${label}</span></div>`)
@@ -458,6 +587,26 @@ function renderAssetSections() {
   $$("[data-delete-asset]").forEach((button) => {
     button.addEventListener("click", () => deleteUploadedAsset(button.dataset.deleteAsset));
   });
+
+  bindAssetPreviewFallbacks();
+}
+
+function bindAssetPreviewFallbacks() {
+  const logo = $("#brandLogo");
+  if (logo) {
+    logo.onerror = () => {
+      logo.removeAttribute("src");
+      logo.alt = "Logo not available";
+    };
+  }
+
+  $$(".asset-preview img, .asset-preview video").forEach((media) => {
+    media.addEventListener("error", () => {
+      const preview = media.closest(".asset-preview");
+      if (!preview) return;
+      preview.innerHTML = `<span class="file-icon">${media.tagName === "VIDEO" ? "VIDEO" : "IMG"}</span>`;
+    });
+  });
 }
 
 function assetCardHtml(asset) {
@@ -468,15 +617,17 @@ function assetCardHtml(asset) {
         ? `<video src="${escapeHtml(asset.src)}" muted preload="metadata"></video>`
         : `<span class="file-icon">PDF</span>`;
 
+  const openButton = `<a href="${escapeHtml(asset.src)}" target="_blank" rel="noopener">打开</a>`;
   const deleteButton = asset.uploaded
     ? `<button class="danger-button" type="button" data-delete-asset="${escapeHtml(asset.id)}">删除</button>`
-    : `<a href="${escapeHtml(asset.src)}" target="_blank" rel="noopener">打开</a>`;
+    : "";
 
   return `<article class="asset-card">
     <button class="asset-preview" type="button" data-preview-id="${escapeHtml(asset.id)}">${preview}</button>
     <strong>${escapeHtml(asset.label)}</strong>
     <div class="asset-actions">
       <button class="copy-small" type="button" data-preview-id="${escapeHtml(asset.id)}">预览</button>
+      ${openButton}
       ${deleteButton}
     </div>
   </article>`;
@@ -521,12 +672,18 @@ function openPreview(asset) {
     const img = document.createElement("img");
     img.src = asset.src;
     img.alt = asset.label;
+    img.onerror = () => {
+      body.innerHTML = `<div class="empty-state">图片无法预览，请点击“打开”查看原文件。</div>`;
+    };
     body.appendChild(img);
   } else if (asset.type === "video") {
     const video = document.createElement("video");
     video.src = asset.src;
     video.controls = true;
     video.playsInline = true;
+    video.onerror = () => {
+      body.innerHTML = `<div class="empty-state">视频无法直接预览，请点击“打开”查看原文件。</div>`;
+    };
     body.appendChild(video);
   } else {
     const iframe = document.createElement("iframe");
@@ -590,8 +747,9 @@ function renderProfileOutput(rules, position, data) {
     ${rules
       .map((rule) => {
         const scoreBase = calculateLeadScore(rule.key, data.positioning, 0);
+        const profileLabel = [rule.label, ...(rule.aliases || [])].join(" / ");
         return `<article class="profile-block">
-          <h3>${escapeHtml(rule.label)}</h3>
+          <h3>${escapeHtml(profileLabel)}</h3>
           <p><strong>建议评分区间：</strong>${scoreBase - 3}-${scoreBase + 8}</p>
           <ul>
             <li><strong>需求：</strong>${escapeHtml(rule.needs.slice(0, 3).join("; "))}</li>
@@ -704,7 +862,7 @@ function renderProspects() {
         </label>
         <span class="score">Match ${lead.matchScore}</span>
         <div class="meta-list">
-          <span><strong>Website:</strong> <a href="${escapeHtml(lead.website)}" target="_blank" rel="noopener">Open search</a></span>
+          <span><strong>Website:</strong> <a class="search-link inline-search-link" href="${escapeHtml(lead.website)}" target="_blank" rel="noopener">Open Search</a></span>
           <span><strong>Country:</strong> ${escapeHtml(lead.country)}</span>
           <span><strong>Customer Type:</strong> ${escapeHtml(lead.type)}</span>
           <span><strong>Lead Score:</strong> ${escapeHtml(lead.matchScore)} - ${escapeHtml(lead.scoreReason)}</span>
@@ -738,12 +896,9 @@ function addSelectedProspectsToPool() {
 }
 
 function addProspectsToPool(selectedIds, shouldNavigate = false) {
-  const existingKeys = new Set(customerPool.map((lead) => `${lead.company}-${lead.country}`.toLowerCase()));
   const selected = currentProspects
     .filter((lead) => selectedIds.includes(lead.id))
-    .filter((lead) => !existingKeys.has(`${lead.company}-${lead.country}`.toLowerCase()))
     .map((lead) => ({
-      id: makeId(),
       company: lead.company,
       website: lead.website,
       country: lead.country,
@@ -753,13 +908,11 @@ function addProspectsToPool(selectedIds, shouldNavigate = false) {
       notes: `Needs: ${lead.possibleNeeds.join("; ")} | Pain: ${lead.possiblePains.join("; ")} | Angle: ${lead.angle} | ${lead.scoreReason}`
     }));
 
-  customerPool = [...selected, ...customerPool];
-  savePool();
-  renderCustomerPool();
+  const result = appendPoolLeads(selected);
   if (shouldNavigate) {
     switchPage("poolPage");
   }
-  setStatus(selected.length ? `已加入客户池 ${selected.length} 个客户。` : "客户已在客户池中，无需重复添加。");
+  setStatus(result.added ? `已加入客户池 ${result.added} 个客户。` : "客户已存在");
 }
 
 function renderRealSearchWorkspace() {
@@ -954,12 +1107,9 @@ function addSelectedRealLeadsToPool() {
 }
 
 function addRealProspectsToPool(selectedIds, shouldNavigate = false) {
-  const existingKeys = new Set(customerPool.map((lead) => `${lead.company}-${lead.country}`.toLowerCase()));
   const selected = currentRealProspects
     .filter((lead) => selectedIds.includes(lead.id))
-    .filter((lead) => !existingKeys.has(`${lead.company}-${lead.country}`.toLowerCase()))
     .map((lead) => ({
-      id: makeId(),
       company: lead.company,
       website: lead.website,
       country: lead.country,
@@ -969,13 +1119,11 @@ function addRealProspectsToPool(selectedIds, shouldNavigate = false) {
       notes: `Needs: ${lead.possibleNeeds.join("; ")} | Pain: ${lead.possiblePains.join("; ")} | Angle: ${lead.angle} | ${lead.scoreReason}`
     }));
 
-  customerPool = [...selected, ...customerPool];
-  savePool();
-  renderCustomerPool();
+  const result = appendPoolLeads(selected);
   if (shouldNavigate) {
     switchPage("poolPage");
   }
-  setStatus(selected.length ? `真实客户已加入客户池 ${selected.length} 个。` : "客户已在客户池中，无需重复添加。");
+  setStatus(result.added ? `真实客户已加入客户池 ${result.added} 个。` : "客户已存在");
 }
 
 function initCustomerPool() {
@@ -994,27 +1142,31 @@ function initCustomerPool() {
       notes: cleanText($("#manualNotes").value)
     };
     if (!lead.company || !lead.country) return;
-    customerPool.unshift(lead);
-    savePool();
-    renderCustomerPool();
+    const result = appendPoolLeads([lead]);
     event.target.reset();
     populateStatusSelect("#manualStatus");
     $("#manualScore").value = 72;
-    setStatus("客户已加入客户池。");
+    setStatus(result.added ? "已加入客户池" : "客户已存在");
   });
 
   $("#importPoolCsvButton").addEventListener("click", () => {
     const imported = parsePoolCsv($("#poolCsvInput").value);
-    customerPool = [...imported, ...customerPool];
-    savePool();
-    renderCustomerPool();
+    if (!imported.length) {
+      setStatus("没有可导入的客户。");
+      return;
+    }
+    const result = appendPoolLeads(imported);
     $("#poolCsvInput").value = "";
-    setStatus(`已导入 ${imported.length} 个客户。`);
+    setStatus(result.added ? `已导入 ${result.added} 个客户` : "客户已存在");
   });
 
-  $("#exportPoolButton").addEventListener("click", async () => {
-    const copied = await copyText(poolToCsv(customerPool));
-    setStatus(copied ? "客户池CSV已复制。" : "复制失败，请手动选择内容。");
+  $("#exportPoolButton").addEventListener("click", () => {
+    if (!customerPool.length) {
+      setStatus("客户池暂无客户可导出。");
+      return;
+    }
+    downloadText("customer-pool.csv", poolToCsv(customerPool), "text/csv;charset=utf-8");
+    setStatus("客户池CSV已导出。");
   });
 
   $("#clearPoolButton").addEventListener("click", () => {
@@ -1031,6 +1183,33 @@ function initCustomerPool() {
     });
   });
 
+  $("#poolSearchInput").addEventListener("input", (event) => {
+    poolFilters.search = cleanText(event.target.value).toLowerCase();
+    renderCustomerPool();
+  });
+
+  $("#poolCountryFilter").addEventListener("change", (event) => {
+    poolFilters.country = event.target.value;
+    renderCustomerPool();
+  });
+
+  $("#poolTypeFilter").addEventListener("change", (event) => {
+    poolFilters.type = event.target.value;
+    renderCustomerPool();
+  });
+
+  $("#poolStatusFilter").addEventListener("change", (event) => {
+    poolFilters.status = event.target.value;
+    renderCustomerPool();
+  });
+
+  $("#showAllPoolButton").addEventListener("click", () => {
+    poolFilters = { search: "", country: "", type: "", status: "" };
+    $("#poolSearchInput").value = "";
+    renderCustomerPool();
+    setStatus("已显示全部客户。");
+  });
+
   $("#goBatchButton").addEventListener("click", () => switchPage("batchPage"));
 
   renderCustomerPool();
@@ -1040,16 +1219,53 @@ function populateStatusSelect(selector, selected = "New Lead") {
   $(selector).innerHTML = STATUS_OPTIONS.map((status) => `<option ${status === selected ? "selected" : ""}>${status}</option>`).join("");
 }
 
+function getFilteredCustomerPool() {
+  return customerPool.filter((lead) => {
+    const matchesSearch = !poolFilters.search || cleanText(lead.company).toLowerCase().includes(poolFilters.search);
+    const matchesCountry = !poolFilters.country || lead.country === poolFilters.country;
+    const matchesType = !poolFilters.type || lead.type === poolFilters.type;
+    const matchesStatus = !poolFilters.status || lead.status === poolFilters.status;
+    return matchesSearch && matchesCountry && matchesType && matchesStatus;
+  });
+}
+
+function renderPoolFilterOptions() {
+  const renderOptions = (selector, values, selected, allLabel) => {
+    const unique = [...new Set(values.map(cleanText).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    $(selector).innerHTML = `<option value="">${allLabel}</option>${unique
+      .map((value) => `<option value="${escapeHtml(value)}" ${value === selected ? "selected" : ""}>${escapeHtml(value)}</option>`)
+      .join("")}`;
+  };
+
+  renderOptions("#poolCountryFilter", customerPool.map((lead) => lead.country), poolFilters.country, "全部国家");
+  renderOptions("#poolTypeFilter", customerPool.map((lead) => lead.type), poolFilters.type, "全部客户类型");
+  renderOptions("#poolStatusFilter", STATUS_OPTIONS, poolFilters.status, "全部状态");
+}
+
+function updatePoolCount(visibleCount) {
+  const total = customerPool.length;
+  $("#poolCount").textContent =
+    visibleCount === total ? `客户池：${total}个客户` : `客户池：${total}个客户，当前显示${visibleCount}个`;
+}
+
 function renderCustomerPool() {
   const body = $("#poolTableBody");
   $("#selectAllPool").checked = false;
+  renderPoolFilterOptions();
+  const visiblePool = getFilteredCustomerPool();
+  updatePoolCount(visiblePool.length);
 
   if (!customerPool.length) {
     body.innerHTML = `<tr><td colspan="9">暂无客户。请从 Lead Finder 勾选加入，或手动添加/CSV导入。</td></tr>`;
     return;
   }
 
-  body.innerHTML = customerPool
+  if (!visiblePool.length) {
+    body.innerHTML = `<tr><td colspan="9">没有匹配筛选条件的客户。点击“显示全部客户”可恢复完整列表。</td></tr>`;
+    return;
+  }
+
+  body.innerHTML = visiblePool
     .map(
       (lead) => `<tr>
         <td><input class="pool-check" type="checkbox" value="${escapeHtml(lead.id)}" /></td>
@@ -1145,6 +1361,14 @@ function poolToCsv(pool) {
   ].join("\n");
 }
 
+function emailsToCsv(emails) {
+  const esc = (value) => `"${String(value || "").replaceAll('"', '""')}"`;
+  return [
+    "Company,Country,Type,Subject,Email",
+    ...emails.map((item) => [item.lead.company, item.lead.country, item.lead.type, item.subject, item.email].map(esc).join(","))
+  ].join("\n");
+}
+
 function initBatch() {
   $("#batchForm").addEventListener("submit", (event) => {
     event.preventDefault();
@@ -1162,12 +1386,16 @@ function initBatch() {
 
     if (!data.product) return;
 
+    emailRunSeed = Date.now();
     const emails = selected.map((lead, index) => buildOutreachEmail(lead, data, index));
+    latestBatchEmails = emails;
     latestBatchText = emails.map((item) => `${item.lead.company}\n${item.email}`).join("\n\n------------------------------\n\n");
     renderBatchEmails(emails);
     renderEmailPreviewCenter(emails);
     $("#copyAllEmailsButton").disabled = false;
     $("#copyPreviewEmailsButton").disabled = false;
+    $("#exportEmailsTxtButton").disabled = false;
+    $("#exportEmailsCsvButton").disabled = false;
     switchPage("previewPage");
     setStatus("已为选中客户生成差异化开发信，并同步到预览中心。");
   });
@@ -1180,6 +1408,24 @@ function initBatch() {
   $("#copyPreviewEmailsButton").addEventListener("click", async () => {
     const copied = await copyText(latestBatchText);
     setStatus(copied ? "预览中心全部邮件已复制。" : "复制失败，请手动选择内容。");
+  });
+
+  $("#exportEmailsTxtButton").addEventListener("click", () => {
+    if (!latestBatchEmails.length) {
+      setStatus("请先生成开发信。");
+      return;
+    }
+    downloadText("outreach-emails.txt", latestBatchText);
+    setStatus("开发信TXT已导出。");
+  });
+
+  $("#exportEmailsCsvButton").addEventListener("click", () => {
+    if (!latestBatchEmails.length) {
+      setStatus("请先生成开发信。");
+      return;
+    }
+    downloadText("outreach-emails.csv", emailsToCsv(latestBatchEmails), "text/csv;charset=utf-8");
+    setStatus("开发信CSV已导出。");
   });
 }
 
@@ -1197,8 +1443,8 @@ function splitAdvantages(value) {
 
 function ruleForLeadType(type) {
   const normalized = String(type || "").toLowerCase();
-  if (normalized.includes("distributor") || normalized.includes("wholesale")) return CUSTOMER_RULES.distributor;
-  if (normalized.includes("brand")) return CUSTOMER_RULES.brand;
+  if (normalized.includes("distributor") || normalized.includes("wholesale") || normalized.includes("wholesaler")) return CUSTOMER_RULES.distributor;
+  if (normalized.includes("brand") || normalized.includes("private label") || normalized.includes("oem") || normalized.includes("odm")) return CUSTOMER_RULES.brand;
   if (normalized.includes("e-commerce") || normalized.includes("ecommerce") || normalized.includes("online")) return CUSTOMER_RULES.ecommerce;
   if (normalized.includes("retail") || normalized.includes("chain")) return CUSTOMER_RULES.retail;
   return CUSTOMER_RULES.importer;
@@ -1206,6 +1452,12 @@ function ruleForLeadType(type) {
 
 function pickByIndex(items, index, offset = 0) {
   return items[(index + offset) % items.length];
+}
+
+function hashText(text) {
+  return Array.from(String(text || "")).reduce((hash, char) => {
+    return (hash * 31 + char.charCodeAt(0)) >>> 0;
+  }, 7);
 }
 
 function emailAssetLine(asset) {
@@ -1221,12 +1473,13 @@ function coreAssetLines(index) {
   const productPhotos = getAssets("products").map((asset) => ({ ...asset, label: `Product photo - ${asset.label}` }));
   const factoryPhotos = getAssets("factories").map((asset) => ({ ...asset, label: `Factory photo - ${asset.label}` }));
   const productVideos = getAssets("productVideos").map((asset) => ({ ...asset, label: `Product video - ${asset.label}` }));
-  const useVideo = index % 3 === 1 && productVideos.length > 0;
+  const seed = hashText(`${emailRunSeed}-${index}`);
+  const useVideo = seed % 3 === 1 && productVideos.length > 0;
   const optionals = useVideo
-    ? [productVideos[index % productVideos.length]]
+    ? [productVideos[seed % productVideos.length]]
     : [
-        productPhotos[index % productPhotos.length],
-        factoryPhotos[index % factoryPhotos.length]
+        productPhotos[seed % productPhotos.length],
+        factoryPhotos[(seed + index + 3) % factoryPhotos.length]
       ];
 
   return [
