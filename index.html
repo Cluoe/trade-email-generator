@@ -65,14 +65,26 @@
                 </label>
                 <label>
                   <span>邮箱</span>
-                  <input id="companyEmail" type="email" placeholder="sales@example.com" />
+                  <input id="companyEmail" type="email" placeholder="name@company.com" />
                 </label>
               </div>
               <button class="primary-button" type="submit">保存公司资料</button>
             </form>
 
             <div class="upload-panel">
-              <h3>上传素材</h3>
+              <h3>导入公司素材包</h3>
+              <div class="asset-import-box">
+                <label>
+                  <span>上传多个文件</span>
+                  <input id="assetPackageUpload" type="file" accept="image/*,.pdf,video/*" multiple />
+                </label>
+                <label>
+                  <span>上传整个文件夹</span>
+                  <input id="assetFolderUpload" type="file" accept="image/*,.pdf,video/*" multiple webkitdirectory directory />
+                </label>
+              </div>
+              <p class="helper-text">系统会根据文件名自动识别 Logo、产品目录、产品图片、工厂图片、视频和认证资料。</p>
+              <h3>手动补充素材</h3>
               <label>
                 <span>上传Logo</span>
                 <input id="logoUpload" type="file" accept="image/*" />

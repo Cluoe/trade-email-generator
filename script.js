@@ -32,7 +32,9 @@ const DEFAULT_COMPANY = {
     products: [],
     factories: [],
     certifications: [],
-    catalogs: []
+    catalogs: [],
+    productVideos: [],
+    productionVideos: []
   }
 };
 
@@ -216,14 +218,28 @@ const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
 function loadCompany() {
   try {
-    return { ...DEFAULT_COMPANY, ...JSON.parse(localStorage.getItem(STORAGE_KEYS.company)) };
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEYS.company)) || {};
+    return {
+      ...DEFAULT_COMPANY,
+      ...saved,
+      uploads: {
+        ...DEFAULT_COMPANY.uploads,
+        ...(saved.uploads || {})
+      }
+    };
   } catch (error) {
     return structuredClone(DEFAULT_COMPANY);
   }
 }
 
 function saveCompany() {
-  localStorage.setItem(STORAGE_KEYS.company, JSON.stringify(company));
+  try {
+    localStorage.setItem(STORAGE_KEYS.company, JSON.stringify(company));
+    return true;
+  } catch (error) {
+    setStatus("localStorage空间不足，较大的图片/视频请使用公开链接。");
+    return false;
+  }
 }
 
 function loadPool() {
@@ -464,11 +480,13 @@ function initCompanyAssets() {
   bindUpload("#factoryUpload", "factories", false);
   bindUpload("#certUpload", "certifications", false);
   bindUpload("#catalogUpload", "catalogs", false);
+  bindAssetPackageUpload("#assetPackageUpload");
+  bindAssetPackageUpload("#assetFolderUpload");
 
   $("#clearUploadsButton").addEventListener("click", () => {
     if (!confirm("确定清空上传素材吗？默认项目素材不会删除。")) return;
     company.logo = null;
-    company.uploads = { products: [], factories: [], certifications: [], catalogs: [] };
+    company.uploads = structuredClone(DEFAULT_COMPANY.uploads);
     saveCompany();
     renderAssets();
     setStatus("上传素材已清空。");
@@ -489,12 +507,7 @@ function bindUpload(selector, bucket, single) {
       }
 
       const asset = await fileToAsset(file, bucket);
-      if (single && bucket === "logo") {
-        company.logo = asset;
-      } else {
-        company.uploads[bucket] = company.uploads[bucket] || [];
-        company.uploads[bucket].push(asset);
-      }
+      storeUploadedAsset(asset, bucket, single);
     }
 
     saveCompany();
@@ -502,6 +515,81 @@ function bindUpload(selector, bucket, single) {
     event.target.value = "";
     setStatus("素材已上传并保存到本地浏览器。");
   });
+}
+
+function bindAssetPackageUpload(selector) {
+  $(selector).addEventListener("change", async (event) => {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+
+    const summary = {
+      logo: 0,
+      products: 0,
+      factories: 0,
+      catalogs: 0,
+      productVideos: 0,
+      productionVideos: 0,
+      certifications: 0,
+      skipped: 0
+    };
+
+    for (const file of files) {
+      const bucket = classifyAssetFile(file);
+      if (!bucket) {
+        summary.skipped += 1;
+        continue;
+      }
+
+      if (file.size > MAX_UPLOAD_BYTES) {
+        summary.skipped += 1;
+        setStatus(`${file.name} 文件较大，建议上传到官网/网盘后填写公开链接。`);
+        continue;
+      }
+
+      const asset = await fileToAsset(file, bucket);
+      storeUploadedAsset(asset, bucket, bucket === "logo");
+      summary[bucket] += 1;
+    }
+
+    saveCompany();
+    renderAssets();
+    event.target.value = "";
+    const total = Object.entries(summary)
+      .filter(([key]) => key !== "skipped")
+      .reduce((sum, [, count]) => sum + count, 0);
+    setStatus(total ? `素材包已自动识别并导入 ${total} 个文件。` : "未识别到可导入素材。");
+  });
+}
+
+function classifyAssetFile(file) {
+  const name = `${file.webkitRelativePath || file.name || ""}`.toLowerCase();
+  const isImage = file.type.startsWith("image/");
+  const isVideo = file.type.startsWith("video/");
+  const isPdf = file.type.includes("pdf") || /\.pdf$/i.test(name);
+
+  if (name.includes("logo") && isImage) return "logo";
+  if (/certificate|certification|test[-_\s]?report/.test(name)) return "certifications";
+  if (isVideo || /video|production[-_\s]?video|factory[-_\s]?video/.test(name)) {
+    return /production|factory|workshop|warehouse/.test(name) ? "productionVideos" : "productVideos";
+  }
+  if (/catalog|catalogue/.test(name) || isPdf) return "catalogs";
+  if (/factory|workshop|warehouse|production/.test(name)) return "factories";
+  if (/product|cat[-_\s]?litter|litter/.test(name)) return "products";
+  if (isImage) return "products";
+  return "";
+}
+
+function storeUploadedAsset(asset, bucket, single = false) {
+  if (single && bucket === "logo") {
+    company.logo = asset;
+    return;
+  }
+
+  company.uploads[bucket] = company.uploads[bucket] || [];
+  const exists = company.uploads[bucket].some((item) => item.label === asset.label && item.size === asset.size);
+  if (!exists) {
+    company.uploads[bucket].push(asset);
+  }
 }
 
 function fileToAsset(file, bucket) {
@@ -512,7 +600,7 @@ function fileToAsset(file, bucket) {
         id: makeId(),
         label: file.name,
         category: bucket,
-        type: file.type.includes("pdf") ? "pdf" : file.type.includes("video") ? "video" : "image",
+        type: detectAssetType(file, bucket),
         src: reader.result,
         uploaded: true,
         size: file.size
@@ -521,6 +609,15 @@ function fileToAsset(file, bucket) {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
+
+function detectAssetType(file, bucket) {
+  const name = `${file.name || ""}`.toLowerCase();
+  if (bucket === "productVideos" || bucket === "productionVideos" || file.type.startsWith("video/") || /\.(mp4|webm|mov|avi|m4v)$/i.test(name)) {
+    return "video";
+  }
+  if (file.type.includes("pdf") || /\.pdf$/i.test(name)) return "pdf";
+  return "image";
 }
 
 function getAssets(category) {
@@ -535,7 +632,7 @@ function getAssets(category) {
     const linkAsset = company.videoLink
       ? [{ id: "link-video", label: "Product / Factory Video Link", category, type: "video", src: normalizeUrl(company.videoLink), external: true }]
       : [];
-    return [...linkAsset, ...STATIC_ASSETS.productVideos];
+    return [...linkAsset, ...uploaded, ...STATIC_ASSETS.productVideos];
   }
   return [...uploaded, ...(STATIC_ASSETS[category] || [])];
 }
@@ -857,7 +954,7 @@ function renderProspects() {
     .map(
       (lead) => `<article class="prospect-card">
         <label>
-          <input type="checkbox" class="prospect-check" value="${escapeHtml(lead.id)}" />
+          <input type="checkbox" class="prospect-check" value="${escapeHtml(lead.id)}" ${isLeadInPool(lead) ? "checked" : ""} />
           <span>${escapeHtml(lead.company)}</span>
         </label>
         <span class="score">Match ${lead.matchScore}</span>
@@ -870,9 +967,6 @@ function renderProspects() {
           <span><strong>Possible Pain Points:</strong> ${escapeHtml(lead.possiblePains.join("; "))}</span>
           <span><strong>Recommended Angle:</strong> ${escapeHtml(lead.angle)}</span>
         </div>
-        <div class="prospect-actions">
-          <button class="secondary-button" type="button" data-add-prospect="${escapeHtml(lead.id)}">☑ 加入客户池</button>
-        </div>
       </article>`
     )
     .join("");
@@ -880,9 +974,26 @@ function renderProspects() {
   $("#prospectResults").classList.remove("empty-state");
   $("#prospectResults").innerHTML = html;
 
-  $$("[data-add-prospect]").forEach((button) => {
-    button.addEventListener("click", () => addProspectsToPool([button.dataset.addProspect], true));
+  $$(".prospect-check").forEach((input) => {
+    input.addEventListener("change", () => handleProspectCheckChange(input));
   });
+}
+
+function handleProspectCheckChange(input) {
+  if (input.checked) {
+    const result = addProspectsToPool([input.value], false);
+    setStatus(result.added ? "已加入客户池" : "客户已在客户池");
+    return;
+  }
+
+  const lead = currentProspects.find((item) => item.id === input.value);
+  if (!lead) return;
+  if (!confirm("是否从客户池移除此客户？")) {
+    input.checked = true;
+    return;
+  }
+  removeLeadFromPool(lead);
+  setStatus("已从客户池移除");
 }
 
 function addSelectedProspectsToPool() {
@@ -898,21 +1009,38 @@ function addSelectedProspectsToPool() {
 function addProspectsToPool(selectedIds, shouldNavigate = false) {
   const selected = currentProspects
     .filter((lead) => selectedIds.includes(lead.id))
-    .map((lead) => ({
-      company: lead.company,
-      website: lead.website,
-      country: lead.country,
-      type: lead.type,
-      matchScore: lead.matchScore,
-      status: "New Lead",
-      notes: `Needs: ${lead.possibleNeeds.join("; ")} | Pain: ${lead.possiblePains.join("; ")} | Angle: ${lead.angle} | ${lead.scoreReason}`
-    }));
+    .map(prospectToPoolLead);
 
   const result = appendPoolLeads(selected);
   if (shouldNavigate) {
     switchPage("poolPage");
   }
-  setStatus(result.added ? `已加入客户池 ${result.added} 个客户。` : "客户已存在");
+  setStatus(result.added ? "已加入客户池" : "客户已在客户池");
+  return result;
+}
+
+function prospectToPoolLead(lead) {
+  return {
+    company: lead.company,
+    website: lead.website,
+    country: lead.country,
+    type: lead.type,
+    matchScore: lead.matchScore,
+    status: "New Lead",
+    notes: `Needs: ${(lead.possibleNeeds || []).join("; ")} | Pain: ${(lead.possiblePains || []).join("; ")} | Angle: ${lead.angle || ""} | ${lead.scoreReason || ""}`
+  };
+}
+
+function isLeadInPool(lead) {
+  const key = leadIdentityKey(prospectToPoolLead(lead));
+  return customerPool.some((item) => leadIdentityKey(item) === key);
+}
+
+function removeLeadFromPool(lead) {
+  const key = leadIdentityKey(prospectToPoolLead(lead));
+  customerPool = customerPool.filter((item) => leadIdentityKey(item) !== key);
+  savePool();
+  renderCustomerPool();
 }
 
 function renderRealSearchWorkspace() {
@@ -1073,7 +1201,7 @@ function renderRealProspects() {
     .map(
       (lead) => `<article class="prospect-card">
         <label>
-          <input type="checkbox" class="real-prospect-check" value="${escapeHtml(lead.id)}" />
+          <input type="checkbox" class="real-prospect-check" value="${escapeHtml(lead.id)}" ${isLeadInPool(lead) ? "checked" : ""} />
           <span>${escapeHtml(lead.company)}</span>
         </label>
         <span class="score">Match ${lead.matchScore}</span>
@@ -1084,17 +1212,31 @@ function renderRealProspects() {
           <span><strong>Needs:</strong> ${escapeHtml(lead.possibleNeeds.join("; "))}</span>
           <span><strong>Pain Points:</strong> ${escapeHtml(lead.possiblePains.join("; "))}</span>
         </div>
-        <div class="prospect-actions">
-          <button class="secondary-button" type="button" data-add-real-prospect="${escapeHtml(lead.id)}">☑ 加入客户池</button>
-        </div>
       </article>`
     )
     .join("");
 
-  $$("[data-add-real-prospect]").forEach((button) => {
-    button.addEventListener("click", () => addRealProspectsToPool([button.dataset.addRealProspect], true));
+  $$(".real-prospect-check").forEach((input) => {
+    input.addEventListener("change", () => handleRealProspectCheckChange(input));
   });
   $("#addSelectedRealLeadsButton").disabled = false;
+}
+
+function handleRealProspectCheckChange(input) {
+  if (input.checked) {
+    const result = addRealProspectsToPool([input.value], false);
+    setStatus(result.added ? "已加入客户池" : "客户已在客户池");
+    return;
+  }
+
+  const lead = currentRealProspects.find((item) => item.id === input.value);
+  if (!lead) return;
+  if (!confirm("是否从客户池移除此客户？")) {
+    input.checked = true;
+    return;
+  }
+  removeLeadFromPool(lead);
+  setStatus("已从客户池移除");
 }
 
 function addSelectedRealLeadsToPool() {
@@ -1109,21 +1251,14 @@ function addSelectedRealLeadsToPool() {
 function addRealProspectsToPool(selectedIds, shouldNavigate = false) {
   const selected = currentRealProspects
     .filter((lead) => selectedIds.includes(lead.id))
-    .map((lead) => ({
-      company: lead.company,
-      website: lead.website,
-      country: lead.country,
-      type: lead.type,
-      matchScore: lead.matchScore,
-      status: "New Lead",
-      notes: `Needs: ${lead.possibleNeeds.join("; ")} | Pain: ${lead.possiblePains.join("; ")} | Angle: ${lead.angle} | ${lead.scoreReason}`
-    }));
+    .map(prospectToPoolLead);
 
   const result = appendPoolLeads(selected);
   if (shouldNavigate) {
     switchPage("poolPage");
   }
-  setStatus(result.added ? `真实客户已加入客户池 ${result.added} 个。` : "客户已存在");
+  setStatus(result.added ? "已加入客户池" : "客户已在客户池");
+  return result;
 }
 
 function initCustomerPool() {
@@ -1385,6 +1520,11 @@ function initBatch() {
     };
 
     if (!data.product) return;
+    if (isCompanyContactIncomplete()) {
+      $("#batchOutput").innerHTML = `<div class="empty-state">请先完善公司资料</div>`;
+      setStatus("请先完善公司资料");
+      return;
+    }
 
     emailRunSeed = Date.now();
     const emails = selected.map((lead, index) => buildOutreachEmail(lead, data, index));
@@ -1473,28 +1613,40 @@ function coreAssetLines(index) {
   const productPhotos = getAssets("products").map((asset) => ({ ...asset, label: `Product photo - ${asset.label}` }));
   const factoryPhotos = getAssets("factories").map((asset) => ({ ...asset, label: `Factory photo - ${asset.label}` }));
   const productVideos = getAssets("productVideos").map((asset) => ({ ...asset, label: `Product video - ${asset.label}` }));
+  const productionVideos = getAssets("productionVideos").map((asset) => ({ ...asset, label: `Production video - ${asset.label}` }));
+  const certifications = getAssets("certifications").map((asset) => ({ ...asset, label: `Certification - ${asset.label}` }));
   const seed = hashText(`${emailRunSeed}-${index}`);
-  const useVideo = seed % 3 === 1 && productVideos.length > 0;
-  const optionals = useVideo
-    ? [productVideos[seed % productVideos.length]]
-    : [
-        productPhotos[seed % productPhotos.length],
-        factoryPhotos[(seed + index + 3) % factoryPhotos.length]
-      ];
+  const optionalPool = [...productPhotos, ...factoryPhotos, ...productVideos, ...productionVideos, ...certifications].filter(Boolean);
+  const optionalCount = optionalPool.length > 1 ? 1 + (seed % 2) : optionalPool.length;
+  const optionals = [];
+
+  for (let offset = 0; offset < optionalPool.length && optionals.length < optionalCount; offset += 1) {
+    const asset = optionalPool[(seed + offset * 7) % optionalPool.length];
+    if (asset && !optionals.some((item) => item.id === asset.id)) {
+      optionals.push(asset);
+    }
+  }
 
   return [
-    company.website ? `Website: ${normalizeUrl(company.website)}` : "Website: please add your website in Company Assets",
-    `Product catalog: ${absoluteUrl(catalog.src)}`,
+    `Website: ${normalizeUrl(company.website)}`,
+    emailAssetLine({ ...catalog, label: `Product catalog - ${catalog.label}` }),
     ...optionals.map(emailAssetLine).filter(Boolean)
   ];
 }
 
+function isCompanyContactIncomplete() {
+  return !cleanText(company.name) || !cleanText(company.website) || !cleanText(company.alibaba) || !cleanText(company.whatsapp) || !cleanText(company.email);
+}
+
 function contactLines() {
-  const lines = [];
-  if (company.whatsapp) lines.push(`WhatsApp: ${company.whatsapp}`);
-  if (company.email) lines.push(`Email: ${company.email}`);
-  if (company.alibaba) lines.push(`Alibaba: ${normalizeUrl(company.alibaba)}`);
-  return lines.length ? lines.join("\n") : "WhatsApp / Email: please add in Company Assets";
+  if (isCompanyContactIncomplete()) return "请先完善公司资料";
+  return [
+    company.name,
+    `Website: ${normalizeUrl(company.website)}`,
+    `Alibaba: ${normalizeUrl(company.alibaba)}`,
+    `WhatsApp: ${company.whatsapp}`,
+    `Email: ${company.email}`
+  ].join("\n");
 }
 
 function buildOutreachEmail(lead, data, index) {
@@ -1519,11 +1671,14 @@ function buildOutreachEmail(lead, data, index) {
   ];
   const subject = pickByIndex(subjectOptions, index);
   const assetLines = coreAssetLines(index).join("\n");
+  const companyName = cleanText(company.name);
   const body = `Subject: ${subject}
 
 Dear Purchasing Manager,
 
 ${pickByIndex(openingOptions, index, 2)}
+
+We are ${companyName}, a direct manufacturer/supplier of ${data.product} based in China.
 
 For a ${rule.label}, the key need is usually ${need}. A common issue is that ${pain}, which can slow down a first order or make supplier comparison difficult.
 
@@ -1535,8 +1690,6 @@ ${assetLines}
 ${cta}
 
 Best regards,
-[Your Name]
-${company.name || "[Your Company]"}
 ${contactLines()}`;
 
   return {
